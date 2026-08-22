@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#5b5ce2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Мой заработок">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<title>Мой заработок</title>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">УЧЁТ ЗАРАБОТКА</div>
+      <h1 id="greeting">Сегодня</h1>
+    </div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Настройки">⚙</button>
+  </header>
+
+  <main>
+    <section id="home" class="screen active">
+      <div class="mode-switch">
+        <button class="mode active" data-mode="shift">Смена</button>
+        <button class="mode" data-mode="boost">Усиление</button>
+      </div>
+
+      <div class="hero-card">
+        <div class="muted">Заработок сегодня</div>
+        <div class="hero-value" id="todayEarnings">0 ₽</div>
+        <div class="hero-sub" id="todayBreakdown">Заполните данные смены</div>
+      </div>
+
+      <div id="shiftFields" class="form-card">
+        <label>Наличные <span>₽</span><input id="cash" type="number" inputmode="decimal" min="0" step="1" placeholder="0"></label>
+        <label>Безнал <span>₽</span><input id="card" type="number" inputmode="decimal" min="0" step="1" placeholder="0"></label>
+        <label>Рабочие часы <span>ч</span><input id="hours" type="number" inputmode="decimal" min="0" step="0.25" placeholder="0"></label>
+      </div>
+
+      <div id="boostFields" class="form-card hidden">
+        <label>Часы усиления <span>ч</span><input id="boostHours" type="number" inputmode="decimal" min="0" step="0.25" placeholder="0"></label>
+        <div class="rate-preview">Ставка усиления: <b id="boostRatePreview">0 ₽/ч</b></div>
+      </div>
+
+      <button class="primary-btn" id="saveBtn">Сохранить день</button>
+      <div class="formula" id="formula">часы × ставка + (наличные + безнал) × 3%</div>
+    </section>
+
+    <section id="month" class="screen">
+      <div class="section-title"><h2>Месяц</h2><span id="monthName"></span></div>
+      <div class="stats-grid">
+        <div class="stat-card"><span>Общий заработок</span><b id="monthTotal">0 ₽</b></div>
+        <div class="stat-card"><span>Усиления</span><b id="monthBoost">0 ₽</b></div>
+        <div class="stat-card"><span>Рабочие часы</span><b id="monthHours">0 ч</b></div>
+      </div>
+      <div class="list-card">
+        <div class="list-header"><b>Сохранённые дни</b><span id="daysCount">0</span></div>
+        <div id="daysList" class="days-list"></div>
+      </div>
+    </section>
+
+    <section id="calendar" class="screen">
+      <div class="section-title"><h2>Календарь</h2><span id="calendarMonth"></span></div>
+      <div class="calendar-tools">
+        <button class="paint-btn shift-paint active" data-paint="shift">Смена</button>
+        <button class="paint-btn boost-paint" data-paint="boost">Усиление</button>
+        <button class="paint-btn erase-paint" data-paint="erase">Очистить</button>
+      </div>
+      <div class="calendar-card">
+        <div class="weekdays"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </div>
+      <div class="legend"><span><i class="dot shift"></i>Смена</span><span><i class="dot boost"></i>Усиление</span></div>
+      <div class="note-card">
+        <div class="note-title">Заметка на <b id="selectedDateLabel">выберите день</b></div>
+        <textarea id="noteText" maxlength="500" placeholder="Например: открыть смену в 14:00"></textarea>
+        <div class="reminder-row">
+          <label>Напомнить <input id="reminderTime" type="time"></label>
+          <button class="secondary-btn" id="saveNoteBtn">Сохранить</button>
+        </div>
+        <small id="reminderInfo">Для напоминаний разрешите уведомления в браузере.</small>
+      </div>
+    </section>
+
+    <section id="settings" class="screen">
+      <div class="section-title"><h2>Настройки</h2></div>
+      <div class="form-card">
+        <label>Ставка за час <span>₽/ч</span><input id="hourRate" type="number" inputmode="decimal" min="0" step="1"></label>
+        <label>Ставка усиления <span>₽/ч</span><input id="boostRate" type="number" inputmode="decimal" min="0" step="1"></label>
+      </div>
+      <button class="secondary-btn full" id="saveSettingsBtn">Сохранить настройки</button>
+      <div class="danger-card">
+        <b>Данные текущего месяца</b>
+        <p>Удалит заработок и заметки только за текущий месяц. Настройки ставок сохранятся.</p>
+        <button class="danger-btn" id="clearMonthBtn">Очистить данные текущего месяца</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab active" data-screen="home"><span>⌂</span>Главная</button>
+    <button class="tab" data-screen="month"><span>▣</span>Месяц</button>
+    <button class="tab" data-screen="calendar"><span>▦</span>Календарь</button>
+  </nav>
+</div>
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
