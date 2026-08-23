@@ -1,113 +1,46 @@
-const KEY="earnings_pwa_v1";
+const KEY="earnings_pwa_v3";
 const defaults={settings:{rate:250,boostRate:180},days:{},notes:{},calendar:{}};
-let data=load(), mode="shift", paintMode="shift", selectedDate=iso(new Date());
+let data=load(), mode="shift", paintMode=null, selectedDate=iso(new Date()), viewMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1), editType="shift", editingDate=null;
 
-function load(){try{return {...defaults,...JSON.parse(localStorage.getItem(KEY)||"{}")}}catch{return structuredClone(defaults)}}
+function load(){try{const raw=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem("earnings_pwa_v1")||"{}");const d={...defaults,...raw,settings:{...defaults.settings,...(raw.settings||{})},days:raw.days||{},notes:raw.notes||{},calendar:raw.calendar||{}}; Object.entries(d.days).forEach(([date,v])=>{if(v&&typeof v==="object"&&!v.rate&&!v.boostRate){if(v.type==="boost")v.boostRate=d.settings.boostRate;else v.rate=d.settings.rate;}}); return d}catch{return structuredClone(defaults)}}
 function save(){localStorage.setItem(KEY,JSON.stringify(data))}
 function iso(d){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
-function money(n){return Math.round(n).toLocaleString("ru-RU")+" ₽"}
+function money(n){return Math.round(Number(n)||0).toLocaleString("ru-RU")+" ₽"}
 function dateObj(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
-function monthKey(d=new Date()){return d.toISOString().slice(0,7)}
-function monthLabel(d=new Date()){return d.toLocaleDateString("ru-RU",{month:"long",year:"numeric"})}
-function toast(t){const x=document.getElementById("toast");x.textContent=t;x.classList.add("show");setTimeout(()=>x.classList.remove("show"),2200)}
+function monthKey(d=viewMonth){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
+function monthLabel(d=viewMonth){return d.toLocaleDateString("ru-RU",{month:"long",year:"numeric"})}
 function today(){return iso(new Date())}
-
-function calcShift(){const h=+cashHours().hours,c=+document.getElementById("cash").value||0,n=+document.getElementById("card").value||0;return h*data.settings.rate+(c+n)*.03}
-function cashHours(){return {hours:document.getElementById("hours").value||0}}
-function calcBoost(){return (+document.getElementById("boostHours").value||0)*data.settings.boostRate}
-function updatePreview(){
-  const val=mode==="shift"?calcShift():calcBoost();
-  document.getElementById("todayEarnings").textContent=money(val);
-  document.getElementById("boostRatePreview").textContent=money(data.settings.boostRate)+"/ч";
-  document.getElementById("todayBreakdown").textContent=mode==="shift"
-    ? `${document.getElementById("hours").value||0} ч × ${money(data.settings.rate)}/ч + 3% от выручки`
-    : `${document.getElementById("boostHours").value||0} ч × ${money(data.settings.boostRate)}/ч`;
-}
-function setMode(m){
- mode=m; document.querySelectorAll(".mode").forEach(b=>b.classList.toggle("active",b.dataset.mode===m));
- document.getElementById("shiftFields").classList.toggle("hidden",m!=="shift");
- document.getElementById("boostFields").classList.toggle("hidden",m!=="boost");
- document.getElementById("formula").textContent=m==="shift"?"часы × ставка + (наличные + безнал) × 3%":"часы × ставка усиления";
- updatePreview();
-}
-function saveDay(){
- const d=today(), val=mode==="shift"?calcShift():calcBoost();
- if(mode==="shift"){
-   data.days[d]={type:"shift",cash:+document.getElementById("cash").value||0,card:+document.getElementById("card").value||0,hours:+document.getElementById("hours").value||0,earnings:val};
- }else{
-   data.days[d]={type:"boost",hours:+document.getElementById("boostHours").value||0,earnings:val};
- }
- data.calendar[d]=mode; save(); toast("День сохранён");
- renderAll();
-}
-function monthDays(){
- const m=monthKey(), out=[];
- Object.entries(data.days).forEach(([d,v])=>{if(d.startsWith(m))out.push([d,v])});
- return out.sort((a,b)=>b[0].localeCompare(a[0]));
-}
-function renderMonth(){
- const rows=monthDays(), total=rows.reduce((s,[,v])=>s+v.earnings,0), boost=rows.filter(([,v])=>v.type==="boost").reduce((s,[,v])=>s+v.earnings,0), hours=rows.reduce((s,[,v])=>s+v.hours,0);
- document.getElementById("monthName").textContent=monthLabel();
- document.getElementById("monthTotal").textContent=money(total);
- document.getElementById("monthBoost").textContent=money(boost);
- document.getElementById("monthHours").textContent=hours.toLocaleString("ru-RU")+" ч";
- document.getElementById("daysCount").textContent=rows.length;
- document.getElementById("daysList").innerHTML=rows.length?rows.map(([d,v])=>`<div class="day-row"><div class="day-main"><i class="day-mark ${v.type==="boost"?"boost":""}"></i><div><div class="day-date">${dateObj(d).toLocaleDateString("ru-RU",{day:"2-digit",month:"long"})}</div><div class="day-type">${v.type==="boost"?"Усиление":"Смена"} · ${v.hours} ч</div></div></div><div class="day-money">${money(v.earnings)}</div></div>`).join(""):"<div style='padding:20px;text-align:center;color:#999'>В этом месяце пока нет сохранённых дней.</div>";
-}
-function renderCalendar(){
- const now=new Date(), y=now.getFullYear(), m=now.getMonth(), first=new Date(y,m,1), days=new Date(y,m+1,0).getDate();
- document.getElementById("calendarMonth").textContent=monthLabel(now);
- let start=(first.getDay()+6)%7, html="";
- for(let i=0;i<start;i++)html+='<div class="cal-day empty"></div>';
- for(let day=1;day<=days;day++){
-   const d=`${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`, mark=data.calendar[d]||"", v=data.days[d], note=data.notes[d];
-   html+=`<button class="cal-day ${mark} ${d===today()?"today":""}" data-date="${d}"><span class="num">${day}</span>${v?`<span class="money">${Math.round(v.earnings)}₽</span>`:""}${note?.text?"<span style='position:absolute;top:3px;right:5px;font-size:8px'>●</span>":""}</button>`;
- }
- document.getElementById("calendarGrid").innerHTML=html;
- document.querySelectorAll(".cal-day[data-date]").forEach(b=>b.onclick=()=>calendarClick(b.dataset.date));
- loadNote(selectedDate);
-}
-function calendarClick(d){
- selectedDate=d;
- if(paintMode==="erase"){delete data.calendar[d];save();renderCalendar();return}
- data.calendar[d]=paintMode;save();renderCalendar();
-}
-function loadNote(d){
- const n=data.notes[d]||{};
- document.getElementById("selectedDateLabel").textContent=dateObj(d).toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
- document.getElementById("noteText").value=n.text||"";
- document.getElementById("reminderTime").value=n.time||"";
- document.getElementById("reminderInfo").textContent=n.time?"Напоминание установлено на "+n.time+".":"Для напоминаний разрешите уведомления в браузере.";
-}
-async function saveNote(){
- const text=document.getElementById("noteText").value.trim(), time=document.getElementById("reminderTime").value;
- if(!text&&!time){delete data.notes[selectedDate];save();renderCalendar();toast("Заметка удалена");return}
- data.notes[selectedDate]={text,time,notified:false};save();
- if(time && "Notification" in window){try{if(Notification.permission==="default")await Notification.requestPermission()}catch{}}
- renderCalendar();toast("Заметка сохранена");
-}
-function showScreen(s){
- document.querySelectorAll(".screen").forEach(x=>x.classList.toggle("active",x.id===s));
- document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.dataset.screen===s));
- if(s==="month")renderMonth(); if(s==="calendar")renderCalendar(); if(s==="settings")loadSettings();
-}
+function toast(t){const x=document.getElementById("toast");x.textContent=t;x.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>x.classList.remove("show"),2200)}
+function calcShiftValues(cash,card,hours,rate){return (Number(hours)||0)*(Number(rate)||0)+((Number(cash)||0)+(Number(card)||0))*.03}
+function calcBoostValues(hours,rate){return (Number(hours)||0)*(Number(rate)||0)}
+function calcShift(){return calcShiftValues(document.getElementById("cash").value,document.getElementById("card").value,document.getElementById("hours").value,data.settings.rate)}
+function calcBoost(){return calcBoostValues(document.getElementById("boostHours").value,data.settings.boostRate)}
+function updatePreview(){const val=mode==="shift"?calcShift():calcBoost();document.getElementById("todayEarnings").textContent=money(val);document.getElementById("boostRatePreview").textContent=money(data.settings.boostRate)+"/ч";document.getElementById("todayBreakdown").textContent=mode==="shift"?`${document.getElementById("hours").value||0} ч × ${money(data.settings.rate)}/ч + 3% от выручки`:`${document.getElementById("boostHours").value||0} ч × ${money(data.settings.boostRate)}/ч`}
+function setMode(m){mode=m;document.querySelectorAll(".mode").forEach(b=>b.classList.toggle("active",b.dataset.mode===m));document.getElementById("shiftFields").classList.toggle("hidden",m!=="shift");document.getElementById("boostFields").classList.toggle("hidden",m!=="boost");document.getElementById("formula").textContent=m==="shift"?"часы × ставка + (наличные + безнал) × 3%":"часы × ставка усиления";updatePreview()}
+function fillHomeFromDay(d){const v=data.days[d];if(!v){toast("За этот день нет записи");return}setMode(v.type==="boost"?"boost":"shift");if(v.type==="shift"){document.getElementById("cash").value=v.cash||0;document.getElementById("card").value=v.card||0;document.getElementById("hours").value=v.hours||0}else document.getElementById("boostHours").value=v.hours||0;updatePreview();showScreen("home");toast("Данные дня загружены для редактирования")}
+function saveDay(){const d=today();const val=mode==="shift"?calcShift():calcBoost();if(mode==="shift")data.days[d]={type:"shift",cash:+document.getElementById("cash").value||0,card:+document.getElementById("card").value||0,hours:+document.getElementById("hours").value||0,rate:data.settings.rate,earnings:val};else data.days[d]={type:"boost",hours:+document.getElementById("boostHours").value||0,boostRate:data.settings.boostRate,earnings:val};data.calendar[d]=mode;save();toast("Сегодня сохранён");renderAll()}
+function daysForMonth(){const m=monthKey();return Object.entries(data.days).filter(([d])=>d.startsWith(m)).sort((a,b)=>b[0].localeCompare(a[0]))}
+function renderMonth(){const rows=daysForMonth(), total=rows.reduce((s,[,v])=>s+(+v.earnings||0),0),boost=rows.filter(([,v])=>v.type==="boost").reduce((s,[,v])=>s+(+v.earnings||0),0),hours=rows.reduce((s,[,v])=>s+(+v.hours||0),0),work=rows.length;document.getElementById("monthName").textContent=monthLabel();document.getElementById("monthTotal").textContent=money(total);document.getElementById("monthBoost").textContent=money(boost);document.getElementById("monthHours").textContent=hours.toLocaleString("ru-RU")+" ч";document.getElementById("monthWorkDays").textContent=work;document.getElementById("monthAvgDay").textContent=money(work?total/work:0);document.getElementById("monthAvgHour").textContent=money(hours?total/hours:0);document.getElementById("daysCount").textContent=work;document.getElementById("daysList").innerHTML=rows.length?rows.map(([d,v])=>`<button class="day-row" data-edit-date="${d}"><div class="day-main"><i class="day-mark ${v.type==="boost"?"boost":""}"></i><div><div class="day-date">${dateObj(d).toLocaleDateString("ru-RU",{weekday:"short",day:"2-digit",month:"long"})}</div><div class="day-type">${v.type==="boost"?"Усиление":"Смена"} · ${v.hours||0} ч · ставка ${money(v.type==="boost"?v.boostRate:v.rate||data.settings.rate)}/ч</div></div></div><div class="day-money">${money(v.earnings)} <span>›</span></div></button>`).join(""):"<div class='empty-state'>В этом месяце пока нет сохранённых дней.</div>";document.querySelectorAll("[data-edit-date]").forEach(b=>b.onclick=()=>openDayEditor(b.dataset.editDate))}
+function renderCalendar(){const y=viewMonth.getFullYear(),m=viewMonth.getMonth(),first=new Date(y,m,1),days=new Date(y,m+1,0).getDate();document.getElementById("calendarMonth").textContent=monthLabel();let start=(first.getDay()+6)%7,html="";for(let i=0;i<start;i++)html+='<div class="cal-day empty"></div>';for(let day=1;day<=days;day++){const d=`${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`,mark=data.calendar[d]||"",v=data.days[d],note=data.notes[d];html+=`<button class="cal-day ${mark} ${d===today()?"today":""} ${d===selectedDate?"selected":""}" data-date="${d}"><span class="num">${day}</span>${v?`<span class="money">${Math.round(v.earnings)}₽</span>`:""}${note?.text?"<span class='note-dot'>●</span>":""}</button>`}document.getElementById("calendarGrid").innerHTML=html;document.querySelectorAll(".cal-day[data-date]").forEach(b=>b.onclick=()=>calendarClick(b.dataset.date));loadNote(selectedDate);updatePaintUI()}
+function calendarClick(d){selectedDate=d;if(paintMode){const current=data.calendar[d]||"";if(current===paintMode){delete data.calendar[d];}else data.calendar[d]=paintMode;save();renderCalendar();return}loadNote(d);renderCalendar()}
+function setPaintMode(m){paintMode=paintMode===m?null:m;updatePaintUI();document.getElementById("paintHint").textContent=paintMode?`Режим «${paintMode==="shift"?"Смена":paintMode==="boost"?"Усиление":"Выходной"}» включён. Нажмите эту кнопку ещё раз, чтобы выйти из режима.`:"Режим выключен. Нажатие на дату выбирает её для заметки или редактирования."}
+function updatePaintUI(){document.querySelectorAll(".paint-btn").forEach(b=>b.classList.toggle("active",b.dataset.paint===paintMode))}
+function loadNote(d){selectedDate=d;const n=data.notes[d]||{};document.getElementById("selectedDateLabel").textContent=dateObj(d).toLocaleDateString("ru-RU",{weekday:"short",day:"numeric",month:"long"});document.getElementById("noteText").value=n.text||"";document.getElementById("reminderTime").value=n.time||"";document.getElementById("reminderInfo").textContent=n.time?`Напоминание установлено на ${n.time}.`:"Можно добавить заметку и время напоминания."}
+async function saveNote(){const text=document.getElementById("noteText").value.trim(),time=document.getElementById("reminderTime").value;if(!text&&!time){delete data.notes[selectedDate];save();renderCalendar();toast("Заметка удалена");return}data.notes[selectedDate]={text,time,notified:false};save();if(time&&"Notification"in window){try{if(Notification.permission==="default")await Notification.requestPermission()}catch{}}renderCalendar();toast("Заметка сохранена")}
+function openDayEditor(d){editingDate=d;const v=data.days[d];editType=v?.type||data.calendar[d]||"off";document.getElementById("modalTitle").textContent=dateObj(d).toLocaleDateString("ru-RU",{weekday:"long",day:"numeric",month:"long"});document.getElementById("editCash").value=v?.cash||0;document.getElementById("editCard").value=v?.card||0;document.getElementById("editHours").value=v?.type==="shift"?v.hours||0:0;document.getElementById("editRate").value=v?.rate??data.settings.rate;document.getElementById("editBoostHours").value=v?.type==="boost"?v.hours||0:0;document.getElementById("editBoostRate").value=v?.boostRate??data.settings.boostRate;setEditType(editType);document.getElementById("dayModal").classList.remove("hidden")}
+function setEditType(t){editType=t;document.querySelectorAll(".modal-type").forEach(b=>b.classList.toggle("active",b.dataset.type===t));document.getElementById("modalShift").classList.toggle("hidden",t!=="shift");document.getElementById("modalBoost").classList.toggle("hidden",t!=="boost");document.getElementById("modalOff").classList.toggle("hidden",t!=="off");updateEditPreview()}
+function updateEditPreview(){let val=0;if(editType==="shift")val=calcShiftValues(document.getElementById("editCash").value,document.getElementById("editCard").value,document.getElementById("editHours").value,document.getElementById("editRate").value);if(editType==="boost")val=calcBoostValues(document.getElementById("editBoostHours").value,document.getElementById("editBoostRate").value);document.getElementById("editEarningsPreview").textContent=money(val)}
+function saveDayEdit(){if(!editingDate)return;if(editType==="off"){delete data.days[editingDate];data.calendar[editingDate]="off"}else if(editType==="shift"){const rate=+document.getElementById("editRate").value||0;const v={type:"shift",cash:+document.getElementById("editCash").value||0,card:+document.getElementById("editCard").value||0,hours:+document.getElementById("editHours").value||0,rate,earnings:calcShiftValues(document.getElementById("editCash").value,document.getElementById("editCard").value,document.getElementById("editHours").value,rate)};data.days[editingDate]=v;data.calendar[editingDate]="shift"}else{const boostRate=+document.getElementById("editBoostRate").value||0;data.days[editingDate]={type:"boost",hours:+document.getElementById("editBoostHours").value||0,boostRate,earnings:calcBoostValues(document.getElementById("editBoostHours").value,boostRate)};data.calendar[editingDate]="boost"}save();closeModal();selectedDate=editingDate;renderAll();toast("День обновлён")}
+function deleteDay(){if(!editingDate)return;if(confirm("Удалить запись о заработке за этот день?")){delete data.days[editingDate];if(data.calendar[editingDate]==="shift"||data.calendar[editingDate]==="boost")delete data.calendar[editingDate];save();closeModal();renderAll();toast("Запись удалена")}}
+function closeModal(){document.getElementById("dayModal").classList.add("hidden");editingDate=null}
+function shiftMonth(delta){viewMonth=new Date(viewMonth.getFullYear(),viewMonth.getMonth()+delta,1);renderMonth();renderCalendar()}
+function showScreen(s){document.querySelectorAll(".screen").forEach(x=>x.classList.toggle("active",x.id===s));document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.dataset.screen===s));if(s==="month")renderMonth();if(s==="calendar")renderCalendar();if(s==="settings")loadSettings()}
 function loadSettings(){document.getElementById("hourRate").value=data.settings.rate;document.getElementById("boostRate").value=data.settings.boostRate}
-function checkReminders(){
- const d=today(), n=data.notes[d]; if(!n?.time||n.notified)return;
- const now=new Date(), hm=now.toTimeString().slice(0,5);
- if(hm===n.time){n.notified=true;save();if("Notification"in window&&Notification.permission==="granted")new Notification("Напоминание",{body:n.text||"Напоминание на сегодня"});else toast("Напоминание: "+(n.text||"событие"))}
-}
+function exportData(){const blob=new Blob([JSON.stringify({version:3,exportedAt:new Date().toISOString(),data},null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`moj-zarabotok-${today()}.json`;a.click();URL.revokeObjectURL(url);toast("Резервная копия создана")}
+function importData(file){const r=new FileReader();r.onload=()=>{try{const payload=JSON.parse(r.result);const imported=payload.data||payload;if(!imported.settings||!imported.days)throw new Error();if(!confirm("Импорт заменит текущие данные. Продолжить?"))return;data={...defaults,...imported,settings:{...defaults.settings,...imported.settings},days:imported.days||{},notes:imported.notes||{},calendar:imported.calendar||{}};save();renderAll();loadSettings();toast("Данные импортированы")}catch{toast("Не удалось прочитать файл")}};r.readAsText(file)}
+function clearMonth(){if(confirm(`Удалить все данные за ${monthLabel()}? Это нельзя отменить.`)){const m=monthKey();Object.keys(data.days).filter(d=>d.startsWith(m)).forEach(d=>delete data.days[d]);Object.keys(data.notes).filter(d=>d.startsWith(m)).forEach(d=>delete data.notes[d]);Object.keys(data.calendar).filter(d=>d.startsWith(m)).forEach(d=>delete data.calendar[d]);save();renderAll();toast("Данные месяца очищены")}}
+function checkReminders(){const d=today(),n=data.notes[d];if(!n?.time||n.notified)return;const hm=new Date().toTimeString().slice(0,5);if(hm===n.time){n.notified=true;save();if("Notification"in window&&Notification.permission==="granted")new Notification("Напоминание",{body:n.text||"Напоминание на сегодня"});else toast("Напоминание: "+(n.text||"событие"))}}
 function renderAll(){document.getElementById("greeting").textContent=new Date().toLocaleDateString("ru-RU",{weekday:"long",day:"numeric",month:"long"});updatePreview();renderMonth();renderCalendar()}
 
-document.querySelectorAll(".mode").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
-document.querySelectorAll("input").forEach(x=>x.addEventListener("input",updatePreview));
-document.getElementById("saveBtn").onclick=saveDay;
-document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
-document.getElementById("settingsBtn").onclick=()=>showScreen("settings");
-document.querySelectorAll(".paint-btn").forEach(b=>b.onclick=()=>{paintMode=b.dataset.paint;document.querySelectorAll(".paint-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active")});
-document.getElementById("saveNoteBtn").onclick=saveNote;
-document.getElementById("saveSettingsBtn").onclick=()=>{data.settings.rate=+document.getElementById("hourRate").value||0;data.settings.boostRate=+document.getElementById("boostRate").value||0;save();updatePreview();toast("Настройки сохранены")};
-document.getElementById("clearMonthBtn").onclick=()=>{if(confirm("Удалить все данные текущего месяца? Это действие нельзя отменить.")){const m=monthKey();Object.keys(data.days).filter(d=>d.startsWith(m)).forEach(d=>delete data.days[d]);Object.keys(data.notes).filter(d=>d.startsWith(m)).forEach(d=>delete data.notes[d]);Object.keys(data.calendar).filter(d=>d.startsWith(m)).forEach(d=>delete data.calendar[d]);save();renderAll();toast("Данные месяца очищены")}};
-
-if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
-renderAll();setInterval(checkReminders,30000);checkReminders();
+document.querySelectorAll(".mode").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));document.querySelectorAll("input").forEach(x=>x.addEventListener("input",()=>{updatePreview();updateEditPreview()}));document.getElementById("saveBtn").onclick=saveDay;document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));document.getElementById("settingsBtn").onclick=()=>showScreen("settings");document.querySelectorAll(".paint-btn").forEach(b=>b.onclick=()=>setPaintMode(b.dataset.paint));document.getElementById("saveNoteBtn").onclick=saveNote;document.getElementById("editSelectedBtn").onclick=()=>openDayEditor(selectedDate);document.getElementById("saveSettingsBtn").onclick=()=>{data.settings.rate=+document.getElementById("hourRate").value||0;data.settings.boostRate=+document.getElementById("boostRate").value||0;save();updatePreview();toast("Настройки сохранены")};document.getElementById("clearMonthBtn").onclick=clearMonth;document.getElementById("monthPrev").onclick=()=>shiftMonth(-1);document.getElementById("monthNext").onclick=()=>shiftMonth(1);document.getElementById("calPrev").onclick=()=>shiftMonth(-1);document.getElementById("calNext").onclick=()=>shiftMonth(1);document.querySelectorAll(".modal-type").forEach(b=>b.onclick=()=>setEditType(b.dataset.type));document.getElementById("closeModal").onclick=closeModal;document.querySelector(".modal-backdrop").onclick=closeModal;document.getElementById("saveDayEdit").onclick=saveDayEdit;document.getElementById("deleteDayBtn").onclick=deleteDay;document.getElementById("exportBtn").onclick=exportData;document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();document.getElementById("importFile").onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=""};
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});renderAll();setInterval(checkReminders,30000);checkReminders();
