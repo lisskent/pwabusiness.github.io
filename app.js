@@ -1,5 +1,5 @@
-const KEY='earnings_pwa_v14';
-const DEFAULT={version:14,user:{name:''},settings:{theme:'light'},activeWorkId:null,works:[],days:{},calendar:{},notes:{},goals:{}};
+const KEY='earnings_pwa_v15';
+const DEFAULT={version:15,user:{name:''},settings:{theme:'light'},activeWorkId:null,works:[],days:{},calendar:{},notes:{},goals:{}};
 let data=load(),selectedDate=iso(new Date()),viewMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),statsMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),editingDate=null,editingEntryId=null,editingWorkId=null,paintMode=null;
 function uid(){return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
 function iso(d){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
@@ -11,10 +11,10 @@ function monthLabel(d=viewMonth){return d.toLocaleDateString('ru-RU',{month:'lon
 function today(){return iso(new Date())}
 function toast(t){const x=document.getElementById('toast');x.textContent=t;x.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>x.classList.remove('show'),2200)}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
-function makeWork(name='Новое место',color='#5b5ce2'){return{id:uid(),name,color,formula:{type:'hour_percent',rate:250,boostRate:180,percent:3,fixed:0}}}
+function makeWork(name='Новое место',color='#5b5ce2'){return{id:uid(),name,color,formula:{type:'hour_percent',rate:250,percent:3,fixed:0}}}
 function load(){
   try{
-    const keys=[KEY,'earnings_pwa_v13','earnings_pwa_v12','earnings_pwa_v11','earnings_pwa_v10','earnings_pwa_v3','earnings_pwa_v1'];
+    const keys=[KEY,'earnings_pwa_v14','earnings_pwa_v13','earnings_pwa_v12','earnings_pwa_v11','earnings_pwa_v10','earnings_pwa_v3','earnings_pwa_v1'];
     let raw=null;
     for(const k of keys){
       const value=localStorage.getItem(k);
@@ -37,8 +37,9 @@ function normalize(d){
   d.settings=d.settings||{}; d.settings.theme=d.settings.theme==='dark'?'dark':'light';
   d.works=Array.isArray(d.works)?d.works:[];
   d.days=d.days||{}; d.calendar=d.calendar||{}; d.notes=d.notes||{}; d.goals=d.goals||{};
-  if(d.settings&&!d.works.length&&d.settings.rate){d.works=[{id:'legacy',name:'Основная работа',color:'#4f67df',formula:{type:'hour_percent',rate:+d.settings.rate||250,boostRate:+d.settings.boostRate||180,percent:3,fixed:0}}]}
+  if(d.settings&&!d.works.length&&d.settings.rate){d.works=[{id:'legacy',name:'Основная работа',color:'#4f67df',formula:{type:'hour_percent',rate:+d.settings.rate||250,percent:3,fixed:0}}]}
   if(!d.works.length)d.works=[makeWork('Основная работа','#4f67df')];
+  d.works=d.works.map(w=>{w.formula=w.formula||{type:'hour_percent',rate:250,percent:3,fixed:0};w.formula.type=['hour_percent','hourly','percent','fixed'].includes(w.formula.type)?w.formula.type:'hour_percent';w.formula.rate=Number(w.formula.rate)||0;w.formula.percent=Number(w.formula.percent)||0;w.formula.fixed=Number(w.formula.fixed)||0;delete w.formula.boostRate;return w});
   const fallbackWork=d.works[0];
   Object.keys(d.days).forEach(date=>{
     let v=d.days[date];
@@ -71,7 +72,15 @@ function normalize(d){
 function save(){const payload=JSON.stringify(data);localStorage.setItem(KEY,payload);try{const r=indexedDB.open('EarningsTrackerDB',2);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('state'))db.createObjectStore('state')};r.onsuccess=()=>{const db=r.result,tx=db.transaction('state','readwrite');tx.objectStore('state').put({savedAt:Date.now(),data},'current');tx.oncomplete=()=>db.close()}}catch{}}
 function work(id){return data.works.find(w=>w.id===id)||data.works[0]}
 function activeWork(){return work(data.activeWorkId)}
-function calc(v,w=work(v.workId)){if(!v||v.type==='off')return 0;const f=v.formulaSnapshot||w?.formula||{},h=+v.hours||0,c=(+v.cash||0)+(+v.card||0);if(v.type==='boost')return h*(+f.boostRate||0);if(f.type==='hourly')return h*(+f.rate||0);if(f.type==='percent')return c*(+f.percent||0)/100;if(f.type==='fixed')return +f.fixed||0;return h*(+f.rate||0)+c*(+f.percent||0)/100}
+function calc(v,w=work(v?.workId)){
+  if(!v||v.type==='off')return 0;
+  const f=v.formulaSnapshot||w?.formula||{},h=Number(v.hours)||0,c=(Number(v.cash)||0)+(Number(v.card)||0);
+  if(v.type==='boost')return h*(Number(f.boostRate)||Number(f.rate)||0);
+  if(f.type==='hourly')return h*(Number(f.rate)||0);
+  if(f.type==='percent')return c*(Number(f.percent)||0)/100;
+  if(f.type==='fixed')return Number(f.fixed)||0;
+  return h*(Number(f.rate)||0)+c*(Number(f.percent)||0)/100;
+}
 function earningsOf(e,w){
   if(!e||e.type==='off')return 0;
   const saved=Number(e.earnings);
@@ -119,24 +128,62 @@ function deleteDay(){if(!editingDate)return;const d=editingDate;if(editingEntryI
 function closeModal(){document.getElementById('dayModal').classList.add('hidden');editingDate=null;editingEntryId=null}
 function shiftMonth(delta){viewMonth=new Date(viewMonth.getFullYear(),viewMonth.getMonth()+delta,1);renderMonth();renderCalendar()}
 function shiftStats(delta){statsMonth=new Date(statsMonth.getFullYear(),statsMonth.getMonth()+delta,1);renderStats()}
+function statsEntries(monthDate){
+  const prefix=`${monthDate.getFullYear()}-${String(monthDate.getMonth()+1).padStart(2,'0')}-`;
+  const out=[];
+  Object.keys(data.days||{}).forEach(date=>{
+    if(!date.startsWith(prefix))return;
+    normalizeDayEntries(data.days[date]).forEach(e=>{
+      if(!e||e.type==='off')return;
+      const w=work(e.workId);
+      let n=Number(e.earnings);
+      if(!Number.isFinite(n)||n<0)n=Number(calc(e,w))||0;
+      const revenue=(Number(e.cash)||0)+(Number(e.card)||0);
+      out.push({date,e,w,n,revenue,hours:Number(e.hours)||0});
+    });
+  });
+  return out;
+}
 function renderStats(){
-  document.getElementById('statsMonth').textContent=monthLabel(statsMonth);
-  const es=entriesForMonth(statsMonth),byDay={};
-  es.forEach(x=>(byDay[x.date]??=[]).push(x));
-  const vals=Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0])).map(([d,list])=>({d,n:list.reduce((s,x)=>s+earningsOf(x.e,x.w),0),revenue:list.reduce((s,x)=>s+(+x.e.cash||0)+(+x.e.card||0),0),hours:list.reduce((s,x)=>s+(+x.e.hours||0),0)}));
-  const max=Math.max(1,...vals.map(x=>x.n));
-  const bars=document.getElementById('bars');
-  bars.innerHTML=vals.length?vals.map(x=>{const h=Math.max(4,x.n/max*100);return `<button class="bar-wrap" data-stat-date="${x.d}" title="${dateObj(x.d).toLocaleDateString('ru-RU',{day:'numeric',month:'short'})}: ${money(x.n)}"><span class="bar-value">${money(x.n)}</span><span class="bar" style="height:${h}%"></span><small>${dateObj(x.d).getDate()}</small></button>`}).join(''):'<div style="color:#999;margin:auto">Нет данных за этот месяц</div>';
-  document.querySelectorAll('[data-stat-date]').forEach(b=>b.onclick=()=>{const x=vals.find(v=>v.d===b.dataset.statDate);if(x)toast(`${dateObj(x.d).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}: ${money(x.n)} · выручка ${money(x.revenue)}`)});
-  const best=vals.reduce((a,b)=>b.n>a.n?b:a,null),total=vals.reduce((s,x)=>s+x.n,0),hours=vals.reduce((s,x)=>s+x.hours,0),commission=es.reduce((s,x)=>{const f=x.e.formulaSnapshot||x.w?.formula||{};return s+((+x.e.cash||0)+(+x.e.card||0))*(f.type==='hour_percent'||f.type==='percent'?+f.percent||0:0)/100},0),days=vals.length;
-  document.getElementById('bestDay').textContent=best?`${dateObj(best.d).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})} · ${money(best.n)}`:'—';
-  document.getElementById('bestDayLabel').textContent=best?money(best.n):'—';
-  document.getElementById('avgShift').textContent=money(days?total/days:0);document.getElementById('avgHour').textContent=money(hours?total/hours:0);document.getElementById('commissionTotal').textContent=money(commission);
-  const wb=document.getElementById('statsWorkBreakdown');if(wb){const map={};es.forEach(x=>map[x.e.workId]=(map[x.e.workId]||0)+earningsOf(x.e,x.w));wb.innerHTML=Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([id,n])=>{const w=work(id);return `<div class="break-row"><i style="background:${w?.color||'#777'}"></i><span>${escapeHtml(w?.name||'Работа')}</span><b>${money(n)}</b></div>`}).join('')||'<div class="muted">Нет данных</div>'}
+  try{
+    const title=document.getElementById('statsMonth');if(title)title.textContent=monthLabel(statsMonth);
+    const es=statsEntries(statsMonth),byDay={};
+    es.forEach(x=>{(byDay[x.date]??=[]).push(x)});
+    const vals=Object.entries(byDay).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,list])=>({d:date,n:list.reduce((s,x)=>s+x.n,0),revenue:list.reduce((s,x)=>s+x.revenue,0),hours:list.reduce((s,x)=>s+x.hours,0)}));
+    const max=Math.max(1,...vals.map(x=>x.n));
+    const bars=document.getElementById('bars');
+    if(bars){
+      bars.innerHTML=vals.length?vals.map(x=>{const h=Math.max(4,(x.n/max)*100);return `<button class=\"bar-wrap\" data-stat-date=\"${x.d}\" type=\"button\" title=\"${dateObj(x.d).toLocaleDateString('ru-RU',{day:'numeric',month:'short'})}: ${money(x.n)}\"><span class=\"bar-value\">${money(x.n)}</span><span class=\"bar\" style=\"height:${h}%\"></span><small>${dateObj(x.d).getDate()}</small></button>`}).join(''):'<div style=\"color:#999;margin:auto\">Нет данных за этот месяц</div>';
+      bars.querySelectorAll('[data-stat-date]').forEach(b=>b.onclick=()=>{const x=vals.find(v=>v.d===b.dataset.statDate);if(x)toast(`${dateObj(x.d).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}: ${money(x.n)} · выручка ${money(x.revenue)}`)});
+    }
+    const total=vals.reduce((s,x)=>s+x.n,0);
+    const hours=vals.reduce((s,x)=>s+x.hours,0);
+    const days=vals.length;
+    const best=vals.length?vals.reduce((a,b)=>b.n>a.n?b:a):null;
+    const commission=es.reduce((s,x)=>{const f=x.e.formulaSnapshot||x.w?.formula||{};return s+((x.revenue)*(Number(f.type==='hour_percent'||f.type==='percent'?f.percent:0)||0)/100)},0);
+    const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
+    set('bestDay',best?`${dateObj(best.d).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})} · ${money(best.n)}`:'—');
+    set('bestDayLabel',best?money(best.n):'—');
+    set('avgShift',money(days?total/days:0));
+    set('avgHour',money(hours?total/hours:0));
+    set('commissionTotal',money(commission));
+    const wb=document.getElementById('statsWorkBreakdown');
+    if(wb){const map={};es.forEach(x=>map[x.w?.id]=(map[x.w?.id]||0)+x.n);wb.innerHTML=Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([id,n])=>{const w=work(id);return `<div class=\"break-row\"><i style=\"background:${w?.color||'#777'}\"></i><span>${escapeHtml(w?.name||'Работа')}</span><b>${money(n)}</b></div>`}).join('')||'<div class=\"muted\">Нет данных</div>'}
+  }catch(err){
+    console.error('Stats render error',err);
+    const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
+    set('bestDay','Ошибка расчёта');set('bestDayLabel','Ошибка');set('avgShift','0 ₽');set('avgHour','0 ₽');set('commissionTotal','0 ₽');
+  }
 }
 function renderWorkList(){document.getElementById('workList').innerHTML=data.works.map(w=>`<div class="work-row"><i class="work-color" style="background:${w.color}"></i><div class="work-info"><b>${escapeHtml(w.name)}</b><small>${escapeHtml(formulaText(w))}</small></div><button data-work-edit="${w.id}">Изменить</button></div>`).join('');document.querySelectorAll('[data-work-edit]').forEach(b=>b.onclick=()=>openWorkEditor(b.dataset.workEdit));updatePaintUI()}
-function openWorkEditor(id=null){editingWorkId=id;const w=id?work(id):makeWork();document.getElementById('workModalTitle').textContent=id?'Изменить место':'Новое место';document.getElementById('workName').value=w.name;document.getElementById('workColor').value=w.color;document.getElementById('formulaType').value=w.formula.type;document.getElementById('formulaRate').value=w.formula.rate;document.getElementById('formulaBoostRate').value=w.formula.boostRate;document.getElementById('formulaPercent').value=w.formula.percent;document.getElementById('formulaFixed').value=w.formula.fixed;document.getElementById('deleteWorkBtn').classList.toggle('hidden',!id);document.getElementById('workModal').classList.remove('hidden')}
-function saveWork(){const name=document.getElementById('workName').value.trim()||'Без названия',f={type:document.getElementById('formulaType').value,rate:+document.getElementById('formulaRate').value||0,boostRate:+document.getElementById('formulaBoostRate').value||0,percent:+document.getElementById('formulaPercent').value||0,fixed:+document.getElementById('formulaFixed').value||0},color=document.getElementById('workColor').value;if(editingWorkId){Object.assign(work(editingWorkId),{name,color,formula:f})}else{const w={...makeWork(name,color),name,color,formula:f};data.works.push(w);data.activeWorkId=w.id}save();closeWorkModal();renderAll();toast('Место работы сохранено')}
+function updateFormulaFields(){
+  const type=document.getElementById('formulaType')?.value||'hour_percent';
+  document.getElementById('formulaRateField')?.classList.toggle('hidden',!['hour_percent','hourly'].includes(type));
+  document.getElementById('formulaPercentField')?.classList.toggle('hidden',!['hour_percent','percent'].includes(type));
+  document.getElementById('formulaFixedField')?.classList.toggle('hidden',type!=='fixed');
+}
+function openWorkEditor(id=null){editingWorkId=id;const w=id?work(id):makeWork();document.getElementById('workModalTitle').textContent=id?'Изменить место':'Новое место';document.getElementById('workName').value=w.name;document.getElementById('workColor').value=w.color;document.getElementById('formulaType').value=w.formula.type;document.getElementById('formulaRate').value=w.formula.rate??'';document.getElementById('formulaPercent').value=w.formula.percent??'';document.getElementById('formulaFixed').value=w.formula.fixed??'';document.getElementById('deleteWorkBtn').classList.toggle('hidden',!id);updateFormulaFields();document.getElementById('workModal').classList.remove('hidden')}
+function saveWork(){const name=document.getElementById('workName').value.trim()||'Без названия',type=document.getElementById('formulaType').value,f={type,rate:+document.getElementById('formulaRate').value||0,percent:+document.getElementById('formulaPercent').value||0,fixed:+document.getElementById('formulaFixed').value||0},color=document.getElementById('workColor').value;if(editingWorkId){Object.assign(work(editingWorkId),{name,color,formula:f})}else{const w={...makeWork(name,color),name,color,formula:f};data.works.push(w);data.activeWorkId=w.id}save();closeWorkModal();renderAll();toast('Место работы сохранено')}
 function deleteWork(){if(!editingWorkId||data.works.length<=1)return toast('Нужно оставить хотя бы одно место работы');if(!confirm('Удалить место работы? История записей останется.'))return;data.works=data.works.filter(w=>w.id!==editingWorkId);data.activeWorkId=data.works[0].id;save();closeWorkModal();renderAll();toast('Место удалено')}
 function closeWorkModal(){document.getElementById('workModal').classList.add('hidden');editingWorkId=null}
 function openGoal(){document.getElementById('goalInput').value=data.goals[monthKey()]||'';document.getElementById('goalModal').classList.remove('hidden')}
@@ -145,11 +192,11 @@ function exportData(){const payload={app:'Мой заработок',version:11,
 function importData(file){const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(r.result),d=normalize(p.data||p);if(!d.works.length)throw 0;if(!confirm('Импорт полностью заменит текущие данные. Продолжить?'))return;data=d;save();renderAll();toast('Данные импортированы')}catch{toast('Не удалось импортировать файл')}};r.readAsText(file)}
 function clearMonth(){if(!confirm(`Удалить все данные за ${monthLabel()}? Это нельзя отменить.`))return;const m=monthKey();Object.keys(data.days).filter(d=>d.startsWith(m)).forEach(d=>delete data.days[d]);Object.keys(data.notes).filter(d=>d.startsWith(m)).forEach(d=>delete data.notes[d]);Object.keys(data.calendar).filter(d=>d.startsWith(m)).forEach(d=>delete data.calendar[d]);delete data.goals[m];save();renderAll();toast('Данные месяца очищены')}
 function showScreen(s){document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===s));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.screen===s));if(s==='month')renderMonth();if(s==='calendar')renderCalendar();if(s==='stats')renderStats();if(s==='settings')renderSettings()}
-function applyTheme(){document.body.classList.toggle('dark',data.settings.theme==='dark');const b=document.getElementById('themeToggle');if(b)b.textContent=data.settings.theme==='dark'?'☀️ Светлая тема':'🌙 Тёмная тема'}
+function applyTheme(){const dark=data.settings.theme==='dark';document.documentElement.classList.toggle('dark',dark);document.body.classList.toggle('dark',dark);const meta=document.querySelector('meta[name=theme-color]');if(meta)meta.content=dark?'#11121a':'#5865e8';const b=document.getElementById('themeToggle');if(b)b.textContent=dark?'☀️ Светлая тема':'🌙 Тёмная тема'}
 function toggleTheme(){data.settings.theme=data.settings.theme==='dark'?'light':'dark';save();applyTheme();toast(data.settings.theme==='dark'?'Тёмная тема включена':'Светлая тема включена')}
 function renderSettings(){renderWorkList();document.getElementById('userName').value=data.user.name||'';applyTheme()}
 function renderAll(){applyTheme();document.getElementById('greeting').textContent=data.user.name?`Привет, ${data.user.name}`:new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});renderWorkSelects();renderMonth();renderCalendar();renderStats();renderSettings()}
-document.getElementById('homeWorkSelect').onchange=e=>{data.activeWorkId=e.target.value;save();renderHomeFields()};document.getElementById('themeToggle').onclick=toggleTheme;document.getElementById('addWorkQuick').onclick=()=>openWorkEditor();document.querySelectorAll('#home input').forEach(x=>x.oninput=updatePreview);document.getElementById('saveBtn').onclick=saveToday;document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));document.getElementById('settingsBtn').onclick=()=>showScreen('settings');document.getElementById('saveNoteBtn').onclick=saveNote;document.getElementById('editSelectedBtn').onclick=()=>openDayEditor(selectedDate);document.getElementById('monthPrev').onclick=()=>shiftMonth(-1);document.getElementById('monthNext').onclick=()=>shiftMonth(1);document.getElementById('calPrev').onclick=()=>shiftMonth(-1);document.getElementById('calNext').onclick=()=>shiftMonth(1);document.getElementById('statsPrev').onclick=()=>shiftStats(-1);document.getElementById('statsNext').onclick=()=>shiftStats(1);document.getElementById('goalBtn').onclick=openGoal;document.getElementById('saveGoalBtn').onclick=saveGoal;document.getElementById('clearGoalBtn').onclick=()=>{delete data.goals[monthKey()];save();document.getElementById('goalModal').classList.add('hidden');renderMonth()};document.getElementById('closeGoalModal').onclick=()=>document.getElementById('goalModal').classList.add('hidden');document.querySelector('#goalModal .modal-backdrop').onclick=()=>document.getElementById('goalModal').classList.add('hidden');document.querySelectorAll('.modal-type').forEach(b=>b.onclick=()=>setEditType(b.dataset.type));document.getElementById('editWorkSelect').onchange=updateEditPreview;['editCash','editCard','editHours','editBoostHours'].forEach(id=>document.getElementById(id).oninput=updateEditPreview);document.getElementById('saveDayEdit').onclick=saveDayEdit;document.getElementById('deleteDayBtn').onclick=deleteDay;document.getElementById('closeModal').onclick=closeModal;document.querySelector('#dayModal .modal-backdrop').onclick=closeModal;document.getElementById('addWorkBtn').onclick=()=>openWorkEditor();document.getElementById('saveWorkBtn').onclick=saveWork;document.getElementById('deleteWorkBtn').onclick=deleteWork;document.getElementById('closeWorkModal').onclick=closeWorkModal;document.querySelector('#workModal .modal-backdrop').onclick=closeWorkModal;document.getElementById('saveProfileBtn').onclick=()=>{data.user.name=document.getElementById('userName').value.trim();save();renderAll();toast('Профиль сохранён')};document.getElementById('exportBtn').onclick=exportData;document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();document.getElementById('importFile').onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=''};document.getElementById('clearMonthBtn').onclick=clearMonth;
+document.getElementById('homeWorkSelect').onchange=e=>{data.activeWorkId=e.target.value;save();renderHomeFields()};document.getElementById('themeToggle').onclick=toggleTheme;document.getElementById('addWorkQuick').onclick=()=>openWorkEditor();document.querySelectorAll('#home input').forEach(x=>x.oninput=updatePreview);document.getElementById('saveBtn').onclick=saveToday;document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));document.getElementById('settingsBtn').onclick=()=>showScreen('settings');document.getElementById('saveNoteBtn').onclick=saveNote;document.getElementById('editSelectedBtn').onclick=()=>openDayEditor(selectedDate);document.getElementById('monthPrev').onclick=()=>shiftMonth(-1);document.getElementById('monthNext').onclick=()=>shiftMonth(1);document.getElementById('calPrev').onclick=()=>shiftMonth(-1);document.getElementById('calNext').onclick=()=>shiftMonth(1);document.getElementById('statsPrev').onclick=()=>shiftStats(-1);document.getElementById('statsNext').onclick=()=>shiftStats(1);document.getElementById('goalBtn').onclick=openGoal;document.getElementById('saveGoalBtn').onclick=saveGoal;document.getElementById('clearGoalBtn').onclick=()=>{delete data.goals[monthKey()];save();document.getElementById('goalModal').classList.add('hidden');renderMonth()};document.getElementById('closeGoalModal').onclick=()=>document.getElementById('goalModal').classList.add('hidden');document.querySelector('#goalModal .modal-backdrop').onclick=()=>document.getElementById('goalModal').classList.add('hidden');document.querySelectorAll('.modal-type').forEach(b=>b.onclick=()=>setEditType(b.dataset.type));document.getElementById('editWorkSelect').onchange=updateEditPreview;['editCash','editCard','editHours','editBoostHours'].forEach(id=>document.getElementById(id).oninput=updateEditPreview);document.getElementById('saveDayEdit').onclick=saveDayEdit;document.getElementById('deleteDayBtn').onclick=deleteDay;document.getElementById('closeModal').onclick=closeModal;document.querySelector('#dayModal .modal-backdrop').onclick=closeModal;document.getElementById('addWorkBtn').onclick=()=>openWorkEditor();document.getElementById('saveWorkBtn').onclick=saveWork;document.getElementById('formulaType').onchange=updateFormulaFields;document.getElementById('deleteWorkBtn').onclick=deleteWork;document.getElementById('closeWorkModal').onclick=closeWorkModal;document.querySelector('#workModal .modal-backdrop').onclick=closeWorkModal;document.getElementById('saveProfileBtn').onclick=()=>{data.user.name=document.getElementById('userName').value.trim();save();renderAll();toast('Профиль сохранён')};document.getElementById('exportBtn').onclick=exportData;document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();document.getElementById('importFile').onchange=e=>{if(e.target.files[0])importData(e.target.files[0]);e.target.value=''};document.getElementById('clearMonthBtn').onclick=clearMonth;
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 function restoreFromIndexedDB(){try{const r=indexedDB.open('EarningsTrackerDB',2);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('state'))db.createObjectStore('state')};r.onsuccess=()=>{const db=r.result,tx=db.transaction('state','readonly'),req=tx.objectStore('state').get('current');req.onsuccess=()=>{const saved=req.result;if(saved?.data){const restored=normalize(saved.data);const localUseful=Object.keys(data.days||{}).length+Object.keys(data.calendar||{}).length;const restoredUseful=Object.keys(restored.days||{}).length+Object.keys(restored.calendar||{}).length;if(restoredUseful>=localUseful){data=restored;data.activeWorkId=data.activeWorkId||data.works[0]?.id;localStorage.setItem(KEY,JSON.stringify(data));renderAll()}}};tx.oncomplete=()=>db.close()}}catch{}}
 renderAll();
