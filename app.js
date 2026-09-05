@@ -363,7 +363,7 @@ function ensureV21(){
   ensureFinance();
   data.version=21;
   data.accounts=Array.isArray(data.accounts)&&data.accounts.length?data.accounts:[...V21_DEFAULT_ACCOUNTS];
-  data.accounts=data.accounts.map(a=>({id:a.id||uid(),name:a.name||'Счёт',icon:a.icon||'💳',opening:Number(a.opening)||0}));
+  data.accounts=data.accounts.map(a=>({id:a.id||uid(),name:a.name||'Счёт',icon:a.icon||'💳',opening:Number(a.opening)||0,balance:a.balance!=null&&Number.isFinite(Number(a.balance))?Number(a.balance):null,balanceSetAt:a.balanceSetAt||null,balanceSetAtTs:Number(a.balanceSetAtTs)||0}));
   const ids=new Set(data.accounts.map(a=>a.id));
   data.transactions=data.transactions.map(t=>{
     if(t.type==='transfer')return {...t,fromAccountId:t.fromAccountId||t.accountId||'cash',toAccountId:t.toAccountId||'card',categoryId:'transfer'};
