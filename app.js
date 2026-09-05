@@ -1,5 +1,5 @@
-const KEY='earnings_pwa_v19';
-const DEFAULT={version:19,user:{name:''},settings:{theme:'light'},activeWorkId:null,works:[],days:{},calendar:{},notes:{},goals:{}};
+const KEY='earnings_pwa_v20';
+const DEFAULT={version:20,user:{name:''},settings:{theme:'light'},activeWorkId:null,works:[],days:{},calendar:{},notes:{},goals:{}};
 let data=load(),selectedDate=iso(new Date()),viewMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),statsMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),editingDate=null,editingEntryId=null,editingWorkId=null,paintMode=null;
 function uid(){return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
 function iso(d){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
@@ -41,7 +41,7 @@ function load(){
 }
 
 function normalize(d){
-  d.version=19;
+  d.version=20;
   d.user=d.user||{name:''};
   d.settings=d.settings||{}; d.settings.theme=d.settings.theme==='dark'?'dark':'light';
   d.works=Array.isArray(d.works)?d.works:[];
@@ -208,7 +208,7 @@ function deleteWork(){if(!editingWorkId||data.works.length<=1)return toast('Ну
 function closeWorkModal(){document.getElementById('workModal').classList.add('hidden');editingWorkId=null}
 function openGoal(){document.getElementById('goalInput').value=data.goals[monthKey()]||'';document.getElementById('goalModal').classList.remove('hidden')}
 function saveGoal(){haptic('success');const v=numVal('goalInput');if(v)data.goals[monthKey()]=v;else delete data.goals[monthKey()];save();document.getElementById('goalModal').classList.add('hidden');renderMonth();toast(v?'Цель сохранена':'Цель удалена')}
-function exportData(){const payload={app:'Мой заработок',version:19,exportedAt:new Date().toISOString(),data};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`moj-zarabotok-backup-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Резервная копия создана')}
+function exportData(){const payload={app:'Мой заработок',version:20,exportedAt:new Date().toISOString(),data};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`moj-zarabotok-backup-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Резервная копия создана')}
 function importData(file){const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(r.result),d=normalize(p.data||p);if(!d.works.length)throw 0;if(!confirm('Импорт полностью заменит текущие данные. Продолжить?'))return;data=d;save();renderAll();toast('Данные импортированы')}catch{toast('Не удалось импортировать файл')}};r.readAsText(file)}
 function clearMonth(){if(!confirm(`Удалить все данные за ${monthLabel()}? Это нельзя отменить.`))return;const m=monthKey();Object.keys(data.days).filter(d=>d.startsWith(m)).forEach(d=>delete data.days[d]);Object.keys(data.notes).filter(d=>d.startsWith(m)).forEach(d=>delete data.notes[d]);Object.keys(data.calendar).filter(d=>d.startsWith(m)).forEach(d=>delete data.calendar[d]);delete data.goals[m];save();renderAll();toast('Данные месяца очищены')}
 function showScreen(s){haptic();document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===s));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.screen===s));if(s==='month')renderMonth();if(s==='calendar')renderCalendar();if(s==='stats')renderStats();if(s==='settings')renderSettings()}
