@@ -223,6 +223,71 @@ function initUX(){
 initUX();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 function restoreFromIndexedDB(){try{const r=indexedDB.open('EarningsTrackerDB',2);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('state'))db.createObjectStore('state')};r.onsuccess=()=>{const db=r.result,tx=db.transaction('state','readonly'),req=tx.objectStore('state').get('current');req.onsuccess=()=>{const saved=req.result;if(saved?.data){const restored=normalize(saved.data);const localUseful=Object.keys(data.days||{}).length+Object.keys(data.calendar||{}).length;const restoredUseful=Object.keys(restored.days||{}).length+Object.keys(restored.calendar||{}).length;if(restoredUseful>=localUseful){data=restored;data.activeWorkId=data.activeWorkId||data.works[0]?.id;localStorage.setItem(KEY,JSON.stringify(data));renderAll();hideLoading()}}};tx.oncomplete=()=>db.close()}}catch{}}
+
+/* v17-v20 finance engine */
+const FINANCE_CATEGORIES=[
+ {id:'food',name:'Еда',icon:'🍜'},{id:'transport',name:'Транспорт',icon:'🚕'},{id:'home',name:'Дом',icon:'🏠'},
+ {id:'fun',name:'Развлечения',icon:'🎮'},{id:'shopping',name:'Покупки',icon:'🛍️'},{id:'health',name:'Здоровье',icon:'❤️'},
+ {id:'clothes',name:'Одежда',icon:'👕'},{id:'subscriptions',name:'Подписки',icon:'🔁'},{id:'travel',name:'Путешествия',icon:'✈️'},{id:'other',name:'Другое',icon:'•'}
+];
+function ensureFinance(){
+ data.transactions=Array.isArray(data.transactions)?data.transactions:[];
+ data.categories=Array.isArray(data.categories)&&data.categories.length?data.categories:FINANCE_CATEGORIES.map(x=>({...x}));
+ data.budgets=data.budgets&&typeof data.budgets==='object'?data.budgets:{};
+ data.transactions=data.transactions.filter(t=>t&&t.id).map(t=>({...t,type:t.type==='income'?'income':'expense',amount:Math.max(0,Number(t.amount)||0),date:t.date||today(),categoryId:t.categoryId||'other',accountId:t.accountId||'cash',note:t.note||'',createdAt:t.createdAt||Date.now()}));
+}
+ensureFinance();
+function txCategory(id){return data.categories.find(c=>c.id===id)||data.categories.find(c=>c.id==='other')||FINANCE_CATEGORIES[9]}
+function monthTransactions(d=viewMonth){const m=monthKey(d);return data.transactions.filter(t=>t.date.startsWith(m));}
+function monthIncome(d=viewMonth){return entriesForMonth(d).reduce((s,x)=>s+earningsOf(x.e,x.w),0)+monthTransactions(d).filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0)}
+function monthExpenses(d=viewMonth){return monthTransactions(d).filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0)}
+function hourlyValue(){const es=entriesForMonth(viewMonth);const hours=es.reduce((s,x)=>s+(Number(x.e.hours)||0),0);const income=es.reduce((s,x)=>s+earningsOf(x.e,x.w),0);return hours?income/hours:((activeWork()?.formula?.rate)||0);}
+function workTimeForAmount(amount){const rate=hourlyValue();if(!rate)return 0;return amount/rate}
+function humanHours(h){if(!h)return '0 ч';const hours=Math.floor(h),mins=Math.round((h-hours)*60);return hours?`${hours} ч ${mins?mins+' мин':''}`.trim():`${mins} мин`}
+function renderMoney(){
+ ensureFinance();
+ const income=monthIncome(moneyMonthDate),expense=monthExpenses(moneyMonthDate),net=income-expense;
+ const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+ set('moneyMonth',monthLabel(moneyMonthDate));set('moneyIncome',money(income));set('moneyExpense',money(expense));set('moneyNet',money(net));
+ const tx=monthTransactions(moneyMonthDate).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
+ set('transactionsCount',tx.length);
+ const list=document.getElementById('transactionsList');
+ if(list)list.innerHTML=tx.length?tx.slice(0,40).map(t=>{const c=txCategory(t.categoryId);return `<button class="tx-row" data-tx-edit="${t.id}"><span class="tx-icon">${c.icon||'•'}</span><span class="tx-main"><b>${escapeHtml(c.name)}</b><small>${dateObj(t.date).toLocaleDateString('ru-RU',{day:'numeric',month:'short'})}${t.note?' · '+escapeHtml(t.note):''}</small></span><span class="tx-amount ${t.type}">${t.type==='expense'?'−':'+'}${money(t.amount)}</span></button>`}).join(''):'<div class="empty-state compact"><b>Операций пока нет</b><span>Добавление занимает несколько секунд. Человечество наконец-то изобрело кнопку «− Расход».</span></div>';
+ document.querySelectorAll('[data-tx-edit]').forEach(b=>b.onclick=()=>openTransaction(b.dataset.txEdit));
+ const h=monthExpenses(moneyMonthDate);const wt=workTimeForAmount(h);set('moneyWorkTime',humanHours(wt));set('moneyWorkTimeHint',h?`${money(h)} расходов = примерно ${humanHours(wt)} рабочего времени по вашей средней ставке.`:'Добавьте расход, чтобы увидеть его эквивалент в рабочем времени.');
+ renderBudgets();
+}
+let moneyMonthDate=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+function shiftMoney(delta){moneyMonthDate=new Date(moneyMonthDate.getFullYear(),moneyMonthDate.getMonth()+delta,1);renderMoney()}
+function openTransaction(id=null,type='expense'){
+ const t=id?data.transactions.find(x=>x.id===id):null;txEditingId=id||null;txType=t?.type||type;
+ document.getElementById('transactionTitle').textContent=t?'Изменить операцию':txType==='expense'?'Новый расход':'Новый доход';
+ document.getElementById('transactionEyebrow').textContent=txType==='expense'?'РАСХОД':'ДОХОД';
+ document.getElementById('txAmount').value=t?.amount??'';document.getElementById('txCategory').innerHTML=data.categories.map(c=>`<option value="${c.id}">${c.icon||'•'} ${escapeHtml(c.name)}</option>`).join('');document.getElementById('txCategory').value=t?.categoryId||'other';document.getElementById('txDate').value=t?.date||today();document.getElementById('txAccount').value=t?.accountId||'cash';document.getElementById('txNote').value=t?.note||'';document.getElementById('deleteTransactionBtn').classList.toggle('hidden',!t);setTxType(txType);updateTxWorkTime();document.getElementById('transactionModal').classList.remove('hidden');
+}
+let txEditingId=null,txType='expense';
+function setTxType(type){txType=type;document.querySelectorAll('.tx-type').forEach(b=>b.classList.toggle('active',b.dataset.txType===type));document.getElementById('transactionEyebrow').textContent=type==='expense'?'РАСХОД':'ДОХОД';document.getElementById('transactionTitle').textContent=txEditingId?'Изменить операцию':type==='expense'?'Новый расход':'Новый доход';updateTxWorkTime()}
+function updateTxWorkTime(){const a=Number(String(document.getElementById('txAmount')?.value||'').replace(/\s/g,'').replace(',','.'))||0;const el=document.getElementById('txWorkTime');if(!el)return;el.textContent=txType==='expense'&&a?`Это ≈ ${humanHours(workTimeForAmount(a))} рабочего времени.`:''}
+function saveTransaction(){const amount=Number(String(document.getElementById('txAmount').value).replace(/\s/g,'').replace(',','.'));if(!Number.isFinite(amount)||amount<=0){toast('Введите сумму больше нуля');return}const t=txEditingId?data.transactions.find(x=>x.id===txEditingId):{id:uid(),createdAt:Date.now()};Object.assign(t,{type:txType,amount,date:document.getElementById('txDate').value||today(),categoryId:document.getElementById('txCategory').value,accountId:document.getElementById('txAccount').value,note:document.getElementById('txNote').value.trim()});if(!txEditingId)data.transactions.push(t);save();closeTransaction();renderAll();showScreen('money');toast(txEditingId?'Операция изменена ✓':'Операция сохранена ✓')}
+function closeTransaction(){document.getElementById('transactionModal').classList.add('hidden');txEditingId=null}
+function deleteTransaction(){if(!txEditingId)return;if(!confirm('Удалить операцию?'))return;data.transactions=data.transactions.filter(t=>t.id!==txEditingId);save();closeTransaction();renderAll();showScreen('money');toast('Операция удалена')}
+function renderBudgets(){const m=monthKey(moneyMonthDate),bud=data.budgets[m]||{},spent={};monthTransactions(moneyMonthDate).filter(t=>t.type==='expense').forEach(t=>spent[t.categoryId]=(spent[t.categoryId]||0)+t.amount);const box=document.getElementById('budgetList');if(!box)return;const ids=Object.keys(bud).filter(id=>Number(bud[id])>0);box.innerHTML=ids.length?ids.map(id=>{const c=txCategory(id),limit=Number(bud[id]),v=spent[id]||0,p=Math.min(100,v/limit*100);return `<div class="budget-row"><div><b>${c.icon} ${escapeHtml(c.name)}</b><br><small>${money(v)} из ${money(limit)}</small></div><b>${Math.round(p)}%</b><div class="budget-progress ${v>limit?'over':''}"><i style="width:${p}%"></i></div></div>`}).join(''):'<div class="empty-state compact"><b>Бюджеты не заданы</b><span>Лимиты появятся здесь, когда вы перестанете доверять памяти и начнёте доверять цифрам.</span></div>'}
+function openBudgets(){const m=monthKey(moneyMonthDate),bud=data.budgets[m]||{},box=document.getElementById('budgetEditor');box.innerHTML='<div class="category-grid">'+data.categories.map(c=>`<div class="category-edit"><label>${c.icon} ${escapeHtml(c.name)}<input data-budget="${c.id}" type="text" inputmode="decimal" value="${bud[c.id]||''}" placeholder="Без лимита"></label></div>`).join('')+'</div>';document.getElementById('budgetModal').classList.remove('hidden')}
+function saveBudgets(){const m=monthKey(moneyMonthDate),bud={};document.querySelectorAll('[data-budget]').forEach(i=>{const v=Number(String(i.value).replace(/\s/g,'').replace(',','.'));if(Number.isFinite(v)&&v>0)bud[i.dataset.budget]=v});data.budgets[m]=bud;save();document.getElementById('budgetModal').classList.add('hidden');renderMoney();toast('Бюджеты сохранены')}
+function renderFinanceStats(){
+ ensureFinance();const tx=monthTransactions(statsMonth).filter(t=>t.type==='expense'),total=tx.reduce((s,t)=>s+t.amount,0),map={};tx.forEach(t=>map[t.categoryId]=(map[t.categoryId]||0)+t.amount);const items=Object.entries(map).sort((a,b)=>b[1]-a[1]);const box=document.getElementById('expenseBars');if(box){const max=Math.max(...items.map(x=>x[1]),1);box.innerHTML=items.length?items.slice(0,8).map(([id,n])=>{const c=txCategory(id);return `<button class="bar-wrap" title="${escapeHtml(c.name)}: ${money(n)}"><span class="bar-value">${money(n)}</span><i class="bar" style="height:${Math.max(8,n/max*100)}%"></i><small>${escapeHtml(c.name)}</small></button>`}).join(''):'<div class="empty-state compact"><b>Нет расходов</b><span>График появится после первой покупки.</span></div>'}const e=document.getElementById('expenseTotalStat');if(e)e.textContent=money(total);renderInsights(total,items)}
+function renderInsights(total,items){const box=document.getElementById('smartInsights');if(!box)return;const income=monthIncome(statsMonth),net=income-total,prev=new Date(statsMonth.getFullYear(),statsMonth.getMonth()-1,1),prevExp=monthExpenses(prev),daily=total/(new Date(statsMonth.getFullYear(),statsMonth.getMonth()+1,0).getDate()||1),daysLeft=Math.max(0,new Date(statsMonth.getFullYear(),statsMonth.getMonth()+1,0).getDate()-new Date().getDate());const insights=[];if(items[0]){const c=txCategory(items[0][0]);insights.push(`<div class="insight"><b>Главная категория</b>${escapeHtml(c.name)}: ${money(items[0][1])}, ${total?Math.round(items[0][1]/total*100):0}% всех расходов.</div>`)}if(prevExp){const diff=(total-prevExp)/prevExp*100;insights.push(`<div class="insight"><b>К прошлому месяцу</b>Расходы ${diff>=0?'выросли':'снизились'} на ${Math.abs(Math.round(diff))}%.</div>`)}if(income){insights.push(`<div class="insight"><b>Чистый поток</b>${money(net)} после расходов. ${net<0?'Расходы уже выше доходов. Математика, к сожалению, не умеет сочувствовать.':'Пока вы в плюсе.'}</div>`)}if(total&&daysLeft>0){insights.push(`<div class="insight"><b>Темп расходов</b>Около ${money(daily)} в день. При таком темпе до конца месяца уйдёт ещё примерно ${money(daily*daysLeft)}.</div>`)}box.innerHTML=insights.join('')||'<div class="empty-state compact"><b>Инсайты появятся здесь</b><span>Нужны хотя бы доходы или расходы.</span></div>'}
+function renderAllFinance(){ensureFinance();renderMoney();renderFinanceStats()}
+const __oldShowScreen=showScreen;
+showScreen=function(s){__oldShowScreen(s);if(s==='money')renderMoney();if(s==='stats')renderFinanceStats()};
+const __oldRenderAll=renderAll;
+renderAll=function(){__oldRenderAll();renderAllFinance()};
+const __oldClearMonth=clearMonth;
+clearMonth=function(){const m=monthKey();if(!confirm(`Удалить все данные за ${monthLabel()}? Это нельзя отменить.`))return;Object.keys(data.days).filter(d=>d.startsWith(m)).forEach(d=>delete data.days[d]);Object.keys(data.notes).filter(d=>d.startsWith(m)).forEach(d=>delete data.notes[d]);Object.keys(data.calendar).filter(d=>d.startsWith(m)).forEach(d=>delete data.calendar[d]);data.transactions=data.transactions.filter(t=>!t.date.startsWith(m));delete data.goals[m];delete data.budgets[m];save();renderAll();toast('Данные месяца очищены')};
+// Bind finance UI after the original app wiring, because apparently one navigation bar was not enough for humanity.
+document.getElementById('addExpenseBtn').onclick=()=>openTransaction(null,'expense');document.getElementById('addIncomeBtn').onclick=()=>openTransaction(null,'income');document.getElementById('moneyPrev').onclick=()=>shiftMoney(-1);document.getElementById('moneyNext').onclick=()=>shiftMoney(1);document.getElementById('budgetBtn').onclick=openBudgets;document.getElementById('saveBudgetsBtn').onclick=saveBudgets;document.getElementById('closeBudgetModal').onclick=()=>document.getElementById('budgetModal').classList.add('hidden');document.querySelector('#budgetModal .modal-backdrop').onclick=()=>document.getElementById('budgetModal').classList.add('hidden');document.getElementById('closeTransactionModal').onclick=closeTransaction;document.querySelector('#transactionModal .modal-backdrop').onclick=closeTransaction;document.getElementById('saveTransactionBtn').onclick=saveTransaction;document.getElementById('deleteTransactionBtn').onclick=deleteTransaction;document.getElementById('txAmount').oninput=updateTxWorkTime;document.querySelectorAll('.tx-type').forEach(b=>b.onclick=()=>setTxType(b.dataset.txType));
+const __oldExportData=exportData;exportData=function(){ensureFinance();__oldExportData()};
+
 renderAll();
 setTimeout(hideLoading,180);
 restoreFromIndexedDB();
