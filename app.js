@@ -1,4 +1,4 @@
-const KEY='earnings_pwa_v21';
+const KEY='earnings_pwa_v22';
 const DEFAULT={version:21,user:{name:''},settings:{theme:'light'},activeWorkId:null,works:[],days:{},calendar:{},notes:{},goals:{}};
 let data=load(),selectedDate=iso(new Date()),viewMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),statsMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),editingDate=null,editingEntryId=null,editingWorkId=null,paintMode=null;
 function uid(){return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
@@ -22,7 +22,7 @@ function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 function makeWork(name='Новое место',color='#5b5ce2'){return{id:uid(),name,color,formula:{type:'hour_percent',rate:250,percent:3,fixed:0}}}
 function load(){
   try{
-    const keys=[KEY,'earnings_pwa_v20','earnings_pwa_v19','earnings_pwa_v18','earnings_pwa_v17','earnings_pwa_v16','earnings_pwa_v14','earnings_pwa_v13','earnings_pwa_v12','earnings_pwa_v11','earnings_pwa_v10','earnings_pwa_v3','earnings_pwa_v1'];
+    const keys=[KEY,'earnings_pwa_v21','earnings_pwa_v20','earnings_pwa_v19','earnings_pwa_v18','earnings_pwa_v17','earnings_pwa_v16','earnings_pwa_v14','earnings_pwa_v13','earnings_pwa_v12','earnings_pwa_v11','earnings_pwa_v10','earnings_pwa_v3','earnings_pwa_v1'];
     let raw=null;
     for(const k of keys){
       const value=localStorage.getItem(k);
@@ -420,7 +420,7 @@ function openTemplateEditor(id=null){templateEditingId=id;const t=id?data.templa
 function saveTemplate(){const name=document.getElementById('templateName').value.trim(),amount=Number(String(document.getElementById('templateAmount').value).replace(/\s/g,'').replace(',','.'));if(!name||!amount||amount<=0){toast('Заполните название и сумму');return}const t=templateEditingId?data.templates.find(x=>x.id===templateEditingId):{id:uid()};Object.assign(t,{name,amount,type:templateType,categoryId:document.getElementById('templateCategory').value,accountId:document.getElementById('templateAccount').value});if(!templateEditingId)data.templates.push(t);save();document.getElementById('templateModal').classList.add('hidden');renderSettings();renderMoney();toast('Шаблон сохранён ✓');templateEditingId=null;}
 function deleteTemplate(){if(!templateEditingId)return;data.templates=data.templates.filter(x=>x.id!==templateEditingId);save();document.getElementById('templateModal').classList.add('hidden');renderSettings();renderMoney();toast('Шаблон удалён');templateEditingId=null;}
 function openRecurringEditor(id=null){recurringEditingId=id;const r=id?data.recurring.find(x=>x.id===id):null;recurringType=r?.type||'expense';document.getElementById('recurringModalTitle').textContent=r?'Изменить регулярную операцию':'Новая регулярная операция';document.getElementById('recurringName').value=r?.name||'';document.getElementById('recurringAmount').value=r?.amount||'';document.getElementById('recurringDay').value=r?.day||1;document.getElementById('recurringCategory').innerHTML=categoryOptions(recurringType,r?.categoryId);fillAccountSelect('recurringAccount',r?.accountId||'cash');document.querySelectorAll('[data-recurring-type]').forEach(b=>b.classList.toggle('active',b.dataset.recurringType===recurringType));document.getElementById('deleteRecurringBtn').classList.toggle('hidden',!r);document.getElementById('recurringModal').classList.remove('hidden');}
-function saveRecurring(){const name=document.getElementById('recurringName').value.trim(),amount=Number(String(document.getElementById('recurringAmount').value).replace(/\s/g,'').replace(',','.')),day=Math.max(1,Math.min(31,Number(document.getElementById('recurringDay').value)||1));if(!name||!amount){toast('Заполните название и сумму');return}const r=recurringEditingId?data.recurring.find(x=>x.id===recurringEditingId):{id:uid()};Object.assign(r,{name,amount,type:recurringType,day,categoryId:document.getElementById('recurringCategory').value,accountId:document.getElementById('recurringAccount').value});if(!recurringEditingId)data.recurring.push(r);save();document.getElementById('recurringModal').classList.add('hidden');renderSettings();toast('Регулярная операция сохранена ✓');recurringEditingId=null;}
+function saveRecurring(){const name=document.getElementById('recurringName').value.trim(),amount=Number(String(document.getElementById('recurringAmount').value).replace(/\s/g,'').replace(',','.')),day=Math.max(1,Math.min(31,Number(document.getElementById('recurringDay').value)||1));if(!name||!amount){toast('Заполните название и сумму');return}const r=recurringEditingId?data.recurring.find(x=>x.id===recurringEditingId):{id:uid()};Object.assign(r,{name,amount,type:recurringType,day,categoryId:document.getElementById('recurringCategory').value,accountId:document.getElementById('recurringAccount').value,createdAt:r.createdAt||Date.now(),generatedDates:Array.isArray(r.generatedDates)?r.generatedDates:[]});if(!recurringEditingId)data.recurring.push(r);save();document.getElementById('recurringModal').classList.add('hidden');renderSettings();toast('Регулярная операция сохранена ✓');recurringEditingId=null;}
 function deleteRecurring(){if(!recurringEditingId)return;data.recurring=data.recurring.filter(x=>x.id!==recurringEditingId);save();document.getElementById('recurringModal').classList.add('hidden');renderSettings();toast('Регулярная операция удалена');recurringEditingId=null;}
 function updateTxAccountUI(){const transfer=txType==='transfer';document.getElementById('txAccountLabel').classList.toggle('hidden',transfer);document.getElementById('transferAccounts').classList.toggle('hidden',!transfer);if(transfer){fillAccountSelect('txFromAccount',document.getElementById('txFromAccount')?.value||'cash');fillAccountSelect('txToAccount',document.getElementById('txToAccount')?.value||'card');}else fillAccountSelect('txAccount',document.getElementById('txAccount')?.value||'cash');}
 const oldSetTxTypeV21=setTxType;setTxType=function(type){txType=type;document.querySelectorAll('.tx-type').forEach(b=>{if(b.dataset.txType)b.classList.toggle('active',b.dataset.txType===type)});document.getElementById('transactionEyebrow').textContent=type==='expense'?'РАСХОД':type==='income'?'ДОХОД':'ПЕРЕВОД';document.getElementById('transactionTitle').textContent=txEditingId?'Изменить операцию':type==='expense'?'Новый расход':type==='income'?'Новый доход':'Перевод между счетами';const sel=document.getElementById('txCategory');if(sel)sel.innerHTML=categoryOptions(type==='income'?'income':'expense');if(sel&&!['transfer'].includes(type))sel.value=categoryFor(type,sel.value).id;updateTxAccountUI();updateTxWorkTime();};
@@ -470,3 +470,165 @@ setTimeout(()=>{if(document.getElementById('onboardingModal')?.classList.contain
 let statsWorkFilter='all';
 function renderStatsWorkFilter(){const e=document.getElementById('statsWorkFilter');if(!e)return;e.innerHTML='<option value="all">Все места</option>'+data.works.map(w=>`<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('');e.value=statsWorkFilter;e.onchange=()=>{statsWorkFilter=e.value;renderStats();};}
 const baseRenderStatsV21=renderStats;renderStats=function(){renderStatsWorkFilter();baseRenderStatsV21();if(statsWorkFilter==='all')return;const es=entriesForMonth(statsMonth).filter(x=>x.e.workId===statsWorkFilter);const total=es.reduce((s,x)=>s+earningsOf(x.e,x.w),0),hours=es.reduce((s,x)=>s+(Number(x.e.hours)||0),0),days=new Set(es.map(x=>x.date)).size;const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('avgShift',money(days?total/days:0));set('avgHour',money(hours?total/hours:0));set('commissionTotal',money(es.reduce((s,x)=>{const c=(Number(x.e.cash)||0)+(Number(x.e.card)||0);return s+c*(Number(x.e.formulaSnapshot?.percent)||0)/100},0)));const best=es.reduce((a,x)=>{const n=earningsOf(x.e,x.w);return !a||n>a.n?{date:x.date,n}:a},null);set('bestDay',best?`${dateObj(best.date).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})} · ${money(best.n)}`:'—');};
+
+/* ====================== v22 PAYOUTS / BALANCES / RECURRING FIX ====================== */
+const V22_DEFAULT_PAYOUTS=[];
+let payoutEditingId=null,payoutType='salary';
+function ensureV22(){
+  ensureV21();
+  data.version=22;
+  data.salaryPayouts=Array.isArray(data.salaryPayouts)?data.salaryPayouts:V22_DEFAULT_PAYOUTS.slice();
+  data.salaryPayouts=data.salaryPayouts.filter(p=>p&&p.id).map(p=>({
+    id:p.id,date:p.date||today(),periodMonth:p.periodMonth||monthKeyForDate(new Date()),type:p.type==='advance'?'advance':'salary',amount:Math.max(0,Number(p.amount)||0),accountId:p.accountId||'cash',note:p.note||'',createdAt:p.createdAt||Date.now()
+  }));
+  data.accounts=data.accounts.map(a=>({
+    ...a,
+    opening:Number(a.opening)||0,
+    balanceSetAt:a.balanceSetAt||null,
+    balance:Number.isFinite(Number(a.balance))?Number(a.balance):null,
+    balanceSetAtTs:Number(a.balanceSetAtTs)||0
+  }));
+  data.recurring=data.recurring.map(r=>({...r,createdAt:Number(r.createdAt)||0,generatedDates:Array.isArray(r.generatedDates)?r.generatedDates:[]}));
+}
+ensureV22();
+
+function eventStartDate(account){return account.balanceSetAt||null;}
+function accountBalancesV22(){
+  const balances={};
+  data.accounts.forEach(a=>balances[a.id]=a.balance!=null&&a.balanceSetAt?Number(a.balance):Number(a.opening)||0);
+  const cutoff={};
+  data.accounts.forEach(a=>{cutoff[a.id]=a.balanceSetAt||null});
+  const include=(accountId,date)=>{const c=cutoff[accountId];return !c||date>c};
+  Object.entries(data.days).forEach(([date,day])=>{
+    normalizeDayEntries(day).forEach(e=>{
+      if(e.type==='off')return;
+      const cash=Number(e.cash)||0,card=Number(e.card)||0;
+      if(include('cash',date))balances.cash=(balances.cash||0)+cash;
+      if(include('card',date))balances.card=(balances.card||0)+card;
+    });
+  });
+  data.transactions.forEach(t=>{
+    if(t.type==='transfer'){
+      if(include(t.fromAccountId,t.date))balances[t.fromAccountId]=(balances[t.fromAccountId]||0)-Number(t.amount||0);
+      if(include(t.toAccountId,t.date))balances[t.toAccountId]=(balances[t.toAccountId]||0)+Number(t.amount||0);
+      return;
+    }
+    if(include(t.accountId,t.date))balances[t.accountId]=(balances[t.accountId]||0)+(t.type==='expense'?-1:1)*Number(t.amount||0);
+  });
+  data.salaryPayouts.forEach(p=>{if(include(p.accountId,p.date))balances[p.accountId]=(balances[p.accountId]||0)+Number(p.amount||0)});
+  return balances;
+}
+accountBalances=accountBalancesV22;
+
+function currentAccountBalance(id){return Number(accountBalancesV22()[id]||0)}
+function openAccountEditorV22(id=null){
+  accountEditingId=id;
+  const a=id?accountById(id):null;
+  document.getElementById('accountModalTitle').textContent=a?'Изменить счёт':'Новый счёт';
+  document.getElementById('accountName').value=a?.name||'';
+  document.getElementById('accountIcon').value=a?.icon||'💳';
+  document.getElementById('accountBalance').value=a?String(currentAccountBalance(id)):'0';
+  document.getElementById('accountBalanceHint').textContent=a?'Это фактическая сумма, которая находится на счёте сейчас. Сохранение установит её новой точкой отсчёта.':'Укажите стартовый баланс, который сейчас находится на счёте.';
+  document.getElementById('deleteAccountBtn').classList.toggle('hidden',!a||['cash','card'].includes(a.id));
+  document.getElementById('accountModal').classList.remove('hidden');
+}
+openAccountEditor=openAccountEditorV22;
+function saveAccountV22(){
+  const name=document.getElementById('accountName').value.trim();
+  const balance=Number(String(document.getElementById('accountBalance').value||'0').replace(/\s/g,'').replace(',','.'));
+  if(!name){toast('Введите название счёта');return}
+  if(!Number.isFinite(balance)||balance<0){toast('Введите корректный баланс');return}
+  const icon=document.getElementById('accountIcon').value.trim()||'💳';
+  if(accountEditingId){
+    const a=accountById(accountEditingId);
+    Object.assign(a,{name,icon,balance,balanceSetAt:today(),balanceSetAtTs:Date.now()});
+  }else data.accounts.push({id:uid(),name,icon,opening:balance,balance,balanceSetAt:today(),balanceSetAtTs:Date.now()});
+  save();document.getElementById('accountModal').classList.add('hidden');renderAll();toast('Счёт сохранён ✓');accountEditingId=null;
+}
+document.getElementById('saveAccountBtn').onclick=saveAccountV22;
+
+function salaryPeriodDefault(type){
+  const d=new Date();
+  if(type==='salary' && d.getDate()<=15)return new Date(d.getFullYear(),d.getMonth()-1,1);
+  return new Date(d.getFullYear(),d.getMonth(),1);
+}
+function salaryAccrued(period){return entriesForMonth(period).reduce((s,x)=>s+earningsOf(x.e,x.w),0)}
+function salaryPaid(period){const m=monthKeyForDate(period);return data.salaryPayouts.filter(p=>p.periodMonth===m).reduce((s,p)=>s+Number(p.amount||0),0)}
+function openPayoutEditor(type='salary',id=null){
+  payoutEditingId=id;
+  const p=id?data.salaryPayouts.find(x=>x.id===id):null;
+  payoutType=p?.type||type;
+  const period=p?parseMonthInput(p.periodMonth):salaryPeriodDefault(payoutType);
+  document.getElementById('payoutModalTitle').textContent=p?'Изменить выплату':payoutType==='advance'?'Вывести аванс':'Вывести зарплату';
+  document.getElementById('payoutAmount').value=p?.amount||'';
+  document.getElementById('payoutDate').value=p?.date||today();
+  document.getElementById('payoutPeriod').value=p?.periodMonth||monthKeyForDate(period);
+  fillAccountSelect('payoutAccount',p?.accountId||'cash');
+  document.getElementById('payoutNote').value=p?.note||'';
+  document.getElementById('deletePayoutBtn').classList.toggle('hidden',!p);
+  document.querySelectorAll('[data-payout-type]').forEach(b=>b.classList.toggle('active',b.dataset.payoutType===payoutType));
+  const accrued=salaryAccrued(period),paid=salaryPaid(period)-(p?.amount||0),due=Math.max(0,accrued-paid);
+  document.getElementById('payoutHint').textContent=`За ${monthLabel(period)} начислено ${money(accrued)}, уже выплачено ${money(paid)}. Укажите фактически полученную сумму.`;
+  document.getElementById('payoutModal').classList.remove('hidden');
+}
+function savePayout(){
+  const amount=Number(String(document.getElementById('payoutAmount').value||'').replace(/\s/g,'').replace(',','.'));
+  if(!Number.isFinite(amount)||amount<=0){toast('Введите сумму выплаты');return}
+  const p=payoutEditingId?data.salaryPayouts.find(x=>x.id===payoutEditingId):{id:uid(),createdAt:Date.now()};
+  Object.assign(p,{type:payoutType,amount,date:document.getElementById('payoutDate').value||today(),periodMonth:document.getElementById('payoutPeriod').value||monthKeyForDate(new Date()),accountId:document.getElementById('payoutAccount').value,note:document.getElementById('payoutNote').value.trim()});
+  if(!payoutEditingId)data.salaryPayouts.push(p);
+  save();document.getElementById('payoutModal').classList.add('hidden');payoutEditingId=null;renderAll();toast('Выплата сохранена ✓');
+}
+function deletePayout(){if(!payoutEditingId)return;if(!confirm('Удалить выплату?'))return;data.salaryPayouts=data.salaryPayouts.filter(p=>p.id!==payoutEditingId);payoutEditingId=null;save();document.getElementById('payoutModal').classList.add('hidden');renderAll();toast('Выплата удалена');}
+function renderSalary(){
+  const period=moneyMonthDate,accrued=salaryAccrued(period),paid=salaryPaid(period),due=Math.max(0,accrued-paid);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  set('salaryPeriodLabel',monthLabel(period));set('salaryAccrued',money(accrued));set('salaryPaid',money(paid));set('salaryDue',money(due));
+  const box=document.getElementById('salaryPayoutList');if(!box)return;
+  const ps=data.salaryPayouts.filter(p=>p.periodMonth===monthKeyForDate(period)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
+  box.innerHTML=ps.length?ps.map(p=>`<button class="salary-payout-row" data-payout-edit="${p.id}"><span><b>${p.type==='advance'?'Аванс':'Зарплата'}</b><small>${dateObj(p.date).toLocaleDateString('ru-RU',{day:'numeric',month:'short'})} · ${escapeHtml(accountById(p.accountId)?.name||'Счёт')}</small></span><strong>${money(p.amount)}</strong></button>`).join(''):'<small class="settings-help">Выплат за этот месяц пока нет.</small>';
+  box.querySelectorAll('[data-payout-edit]').forEach(b=>b.onclick=()=>openPayoutEditor('salary',b.dataset.payoutEdit));
+}
+
+function renderHomeFinanceV22(){
+  const d=new Date(),inc=entriesForMonth(d).filter(x=>x.date<=today()).reduce((s,x)=>s+earningsOf(x.e,x.w),0)+monthTransactions(d).filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0),exp=monthExpenses(d),net=inc-exp,goal=Number(data.goals[monthKey(d)]||0),p=goal?Math.min(100,inc/goal*100):0;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  set('homeFinanceMonth',monthLabel(d));set('homeIncome',money(inc));set('homeExpense',money(exp));set('homeNet',money(net));set('homeGoalHint',goal?`${money(inc)} из ${money(goal)} · ${Math.round(p)}% цели`:'Цель месяца не задана');const bar=document.getElementById('homeGoalProgress');if(bar)bar.style.width=p+'%';
+}
+renderHomeFinance=renderHomeFinanceV22;
+
+function materializeRecurringV22(d=new Date()){
+  const todayStr=today(),mk=monthKeyForDate(d),lastDay=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();let added=0;
+  data.recurring.forEach(r=>{
+    const day=Math.min(Number(r.day)||1,lastDay),date=`${mk}-${String(day).padStart(2,'0')}`,createdDate=r.createdAt?iso(new Date(r.createdAt)):null;
+    if(date>todayStr||r.generatedDates.includes(date)||(createdDate&&date<createdDate))return;
+    const exists=data.transactions.some(t=>t.recurringId===r.id&&t.date===date);
+    if(!exists){data.transactions.push({id:uid(),createdAt:Date.now(),type:r.type,amount:r.amount,date,categoryId:r.categoryId,accountId:r.accountId,note:`Регулярно: ${r.name}`,recurringId:r.id});added++;}
+    r.generatedDates.push(date);
+  });
+  if(added)save();
+  return added;
+}
+materializeRecurring=materializeRecurringV22;
+
+// A recurring item is materialized only when its calendar date has arrived.
+const __oldShowScreenV22=showScreen;
+showScreen=function(s){__oldShowScreenV22(s);if(s==='money'){const added=materializeRecurringV22(new Date());if(added)toast(`Добавлено регулярных операций: ${added}`);renderMoneyV21();renderSalary();}if(s==='settings')renderSettings();};
+
+// Make the home financial widget refresh after every full render and every saved shift.
+const __oldRenderAllV22=renderAll;
+renderAll=function(){ensureV22();__oldRenderAllV22();renderHomeFinanceV22();renderSalary();};
+
+// Salary actions and payout modal.
+document.getElementById('advanceBtn')?.addEventListener('click',()=>openPayoutEditor('advance'));
+document.getElementById('salaryBtn')?.addEventListener('click',()=>openPayoutEditor('salary'));
+document.getElementById('savePayoutBtn')?.addEventListener('click',savePayout);
+document.getElementById('deletePayoutBtn')?.addEventListener('click',deletePayout);
+document.getElementById('closePayoutModal')?.addEventListener('click',()=>document.getElementById('payoutModal').classList.add('hidden'));
+document.querySelector('#payoutModal .modal-backdrop')?.addEventListener('click',()=>document.getElementById('payoutModal').classList.add('hidden'));
+document.querySelectorAll('[data-payout-type]').forEach(b=>b.onclick=()=>{payoutType=b.dataset.payoutType;openPayoutEditor(payoutType,payoutEditingId)});
+document.getElementById('payoutPeriod')?.addEventListener('change',()=>{const p=parseMonthInput(document.getElementById('payoutPeriod').value);const accrued=salaryAccrued(p),paid=salaryPaid(p)-(payoutEditingId?Number(data.salaryPayouts.find(x=>x.id===payoutEditingId)?.amount||0):0);document.getElementById('payoutHint').textContent=`За ${monthLabel(p)} начислено ${money(accrued)}, уже выплачено ${money(Math.max(0,paid))}. Укажите фактически полученную сумму.`});
+
+document.getElementById('accountBalance')?.addEventListener('blur',e=>formatMoneyInput(e.target));
+
+data.version=22;save();renderAll();
