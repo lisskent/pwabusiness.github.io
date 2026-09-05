@@ -62,3 +62,23 @@ html.dark .tx-amount.income{color:#7fe0aa}
 html.dark .export-month-row input{background:#11131b;color:#f4f4fb;border-color:#3a3c4d}
 .forecast-card .forecast-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.forecast-badge{padding:5px 8px;border-radius:999px;background:#ececff;color:#5556cf;font-size:10px;font-weight:800}.forecast-badge.warn{background:#fff0f3;color:#c93659}
 html.dark .forecast-badge{background:#292c47;color:#c5c7ff}
+
+/* v19: category management + responsive alignment polish */
+.settings-help{margin:4px 0 12px;color:#77758e;font-size:12px;line-height:1.45}
+.category-settings-list{display:grid;gap:8px;margin-bottom:10px}
+.category-setting-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eeeef6;min-width:0}
+.category-setting-row:last-child{border-bottom:0}
+.category-setting-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:#f0f0ff;font-size:20px;flex:none}
+.category-setting-info{min-width:0;overflow:hidden}.category-setting-info b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.category-setting-info small{display:block;color:#77758e;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.category-setting-row .small-btn{min-height:40px;padding:7px 12px;white-space:nowrap}
+html.dark .settings-help,html.dark .category-setting-info small{color:#aeb0c5}
+html.dark .category-setting-row{border-color:#303342}
+html.dark .category-setting-icon{background:#25283a;color:#c5c6ff}
+.work-select{display:grid;grid-template-columns:auto minmax(0,1fr) 52px;align-items:center;gap:12px;width:100%;min-width:0}
+.work-select>span{min-width:0;white-space:nowrap}.work-select select{width:100%;min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis}
+.reminder-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:end;gap:10px!important;width:100%;min-width:0}
+.reminder-row label{min-width:0;width:100%}.reminder-row input{width:100%;box-sizing:border-box}.reminder-row .secondary-btn{width:auto;min-width:130px;max-width:100%;white-space:nowrap}
+.note-card textarea{width:100%;box-sizing:border-box;display:block;max-width:100%;resize:vertical}
+.form-card,.note-card,.settings-block,.backup-card,.list-card,.calendar-card,.chart-card,.stat-card,.goal-card,.forecast-card,.work-select{box-sizing:border-box;max-width:100%}
+@media(max-width:560px){.work-select{grid-template-columns:minmax(0,1fr) 48px}.work-select>span{grid-column:1/-1}.work-select select{grid-column:1}.work-select button{grid-column:2;grid-row:2;width:48px}.reminder-row{grid-template-columns:minmax(0,1fr) auto!important}.reminder-row .secondary-btn{min-width:110px}.category-setting-row{grid-template-columns:40px minmax(0,1fr) auto}.category-setting-row .small-btn{padding:7px 10px}}
+@media(max-width:380px){.category-setting-row{grid-template-columns:38px minmax(0,1fr)}.category-setting-row .small-btn{grid-column:2;justify-self:start}.category-setting-icon{width:38px;height:38px}.reminder-row{grid-template-columns:1fr!important}.reminder-row .secondary-btn{width:100%;min-width:0}}
