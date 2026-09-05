@@ -22,3 +22,12 @@
 
 ### Для следующего этапа
 Для массового продукта стоит добавить аккаунты, серверную синхронизацию, push-уведомления, аналитику ошибок и платежи.
+
+
+## v18
+- CSV export for selected month (UTF-8 BOM, semicolon delimiter for Excel compatibility).
+- Excel-compatible `.xls` export for selected month.
+- PDF monthly report via the device/browser print dialog, with summary, forecast, category breakdown and operations.
+- Selected month is controlled by the month field in Settings → Export and backup.
+- Smart earnings forecast: combines planned calendar shifts, weekday patterns and recent/historical earnings by workplace, with confidence and method labels.
+- Dark-theme transaction list polished: transparent rows, correct text colors and hover/tap states.

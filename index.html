@@ -16,7 +16,7 @@
 <div class="section-title"><h2>Месяц</h2><div class="month-nav"><button id="monthPrev">‹</button><span id="monthName"></span><button id="monthNext">›</button></div></div>
 <div class="stats-grid"><div class="stat-card wide"><span>Общий заработок</span><b id="monthTotal">0 ₽</b></div><div class="stat-card"><span>Часы</span><b id="monthHours">0 ч</b></div><div class="stat-card"><span>Рабочих дней</span><b id="monthWorkDays">0</b></div><div class="stat-card"><span>Средний день</span><b id="monthAvgDay">0 ₽</b></div><div class="stat-card"><span>Средний час</span><b id="monthAvgHour">0 ₽</b></div></div>
 <div class="goal-card"><div><span>Цель месяца</span><b id="goalValue">Не задана</b></div><button id="goalBtn">Настроить</button><div class="progress"><i id="goalProgress"></i></div><small id="goalHint">Поставьте цель по заработку</small></div>
-<div class="forecast-card"><div><span>Прогноз</span><b id="forecastValue">0 ₽</b></div><p id="forecastText">Недостаточно данных</p></div>
+<div class="forecast-card"><div><span>Прогноз заработка</span><b id="forecastValue">0 ₽</b></div><p id="forecastText">Недостаточно данных</p><div class="forecast-meta"><span class="forecast-badge" id="forecastConfidence">—</span><span class="forecast-badge" id="forecastMethod">—</span></div></div>
 <div class="list-card"><div class="list-header"><b>Дни</b><span id="daysCount">0</span></div><div id="workBreakdown" class="work-breakdown"></div><div id="daysList" class="days-list"></div></div>
 </section>
 
@@ -50,7 +50,7 @@
 <div class="settings-block"><div class="block-title">Места работы</div><div id="workList"></div><button class="secondary-btn full" id="addWorkBtn">＋ Добавить место работы</button></div>
 <div class="settings-block"><div class="block-title">Оформление</div><button class="secondary-btn full" id="themeToggle">🌙 Тёмная тема</button></div>
 <div class="settings-block"><div class="block-title">Общие данные</div><div class="form-card compact"><label>Имя <input id="userName" type="text" placeholder="Как к вам обращаться"></label></div><button class="secondary-btn full" id="saveProfileBtn">Сохранить</button></div>
-<div class="backup-card"><b>Резервная копия</b><p>JSON содержит рабочие места, формулы, заработок, календарь, цели и заметки. Данные можно перенести на другой телефон.</p><div class="backup-row"><button class="secondary-btn" id="exportBtn">Экспорт</button><button class="secondary-btn" id="importBtn">Импорт</button></div><input id="importFile" type="file" accept="application/json" hidden></div>
+<div class="backup-card"><b>Экспорт и резервная копия</b><p>Выберите месяц для отчёта. JSON сохраняет все данные для переноса, CSV и Excel удобны для таблиц, PDF собирает аккуратный отчёт по выбранному месяцу.</p><div class="export-month-row"><label>Месяц отчёта<input id="exportMonth" type="month"></label></div><div class="export-grid"><button class="secondary-btn" id="exportCsvBtn">CSV</button><button class="secondary-btn" id="exportExcelBtn">Excel</button><button class="secondary-btn" id="exportPdfBtn">PDF</button><button class="secondary-btn" id="exportBtn">JSON</button><button class="secondary-btn" id="importBtn">Импорт</button></div><input id="importFile" type="file" accept="application/json" hidden></div>
 <div class="danger-card"><b>Очистить текущий месяц</b><p>Удаляются записи, планирование и заметки текущего месяца. Настройки рабочих мест сохраняются.</p><button class="danger-btn" id="clearMonthBtn">Очистить данные</button></div>
 </section>
 </main>
