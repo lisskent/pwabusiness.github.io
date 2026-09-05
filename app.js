@@ -651,3 +651,13 @@ document.getElementById('payoutPeriod')?.addEventListener('change',()=>{const p=
 document.getElementById('accountBalance')?.addEventListener('blur',e=>formatMoneyInput(e.target));
 
 data.version=23;save();renderAll();
+
+// v23 patch: user-facing app information modal. Version remains v23.
+(()=>{
+  const infoBtn=document.getElementById('infoBtn');
+  const infoModal=document.getElementById('infoModal');
+  const closeInfo=()=>infoModal?.classList.add('hidden');
+  infoBtn?.addEventListener('click',()=>infoModal?.classList.remove('hidden'));
+  document.getElementById('closeInfoModal')?.addEventListener('click',closeInfo);
+  infoModal?.querySelector('.modal-backdrop')?.addEventListener('click',closeInfo);
+})();
