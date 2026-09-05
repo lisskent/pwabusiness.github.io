@@ -1,4 +1,4 @@
-const KEY='earnings_pwa_v22';
+const KEY='earnings_pwa_v23';
 const DEFAULT={version:21,user:{name:''},settings:{theme:'light'},activeWorkId:null,works:[],days:{},calendar:{},notes:{},goals:{}};
 let data=load(),selectedDate=iso(new Date()),viewMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),statsMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1),editingDate=null,editingEntryId=null,editingWorkId=null,paintMode=null;
 function uid(){return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
@@ -22,7 +22,7 @@ function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 function makeWork(name='Новое место',color='#5b5ce2'){return{id:uid(),name,color,formula:{type:'hour_percent',rate:250,percent:3,fixed:0}}}
 function load(){
   try{
-    const keys=[KEY,'earnings_pwa_v21','earnings_pwa_v20','earnings_pwa_v19','earnings_pwa_v18','earnings_pwa_v17','earnings_pwa_v16','earnings_pwa_v14','earnings_pwa_v13','earnings_pwa_v12','earnings_pwa_v11','earnings_pwa_v10','earnings_pwa_v3','earnings_pwa_v1'];
+    const keys=[KEY,'earnings_pwa_v22','earnings_pwa_v21','earnings_pwa_v20','earnings_pwa_v19','earnings_pwa_v18','earnings_pwa_v17','earnings_pwa_v16','earnings_pwa_v14','earnings_pwa_v13','earnings_pwa_v12','earnings_pwa_v11','earnings_pwa_v10','earnings_pwa_v3','earnings_pwa_v1'];
     let raw=null;
     for(const k of keys){
       const value=localStorage.getItem(k);
@@ -476,7 +476,7 @@ const V22_DEFAULT_PAYOUTS=[];
 let payoutEditingId=null,payoutType='salary';
 function ensureV22(){
   ensureV21();
-  data.version=22;
+  data.version=23;
   data.salaryPayouts=Array.isArray(data.salaryPayouts)?data.salaryPayouts:V22_DEFAULT_PAYOUTS.slice();
   data.salaryPayouts=data.salaryPayouts.filter(p=>p&&p.id).map(p=>({
     id:p.id,date:p.date||today(),periodMonth:p.periodMonth||monthKeyForDate(new Date()),type:p.type==='advance'?'advance':'salary',amount:Math.max(0,Number(p.amount)||0),accountId:p.accountId||'cash',note:p.note||'',createdAt:p.createdAt||Date.now()
@@ -545,7 +545,26 @@ function saveAccountV22(){
   }else data.accounts.push({id:uid(),name,icon,opening:balance,balance,balanceSetAt:today(),balanceSetAtTs:Date.now()});
   save();document.getElementById('accountModal').classList.add('hidden');renderAll();toast('Счёт сохранён ✓');accountEditingId=null;
 }
-document.getElementById('saveAccountBtn').onclick=saveAccountV22;
+function saveAccountV23(){
+  const id=accountEditingId;
+  const name=document.getElementById('accountName').value.trim();
+  const balance=Number(String(document.getElementById('accountBalance').value||'0').replace(/\s/g,'').replace(',','.'));
+  if(!name){toast('Введите название счёта');return}
+  if(!Number.isFinite(balance)||balance<0){toast('Введите корректный баланс');return}
+  const icon=document.getElementById('accountIcon').value.trim()||'💳';
+  if(id){
+    const a=data.accounts.find(x=>x.id===id);
+    if(!a){toast('Счёт не найден');return}
+    Object.assign(a,{name,icon,balance,balanceSetAt:today(),balanceSetAtTs:Date.now()});
+  }else{
+    data.accounts.push({id:uid(),name,icon,opening:balance,balance,balanceSetAt:today(),balanceSetAtTs:Date.now()});
+  }
+  save();document.getElementById('accountModal').classList.add('hidden');renderAll();toast('Счёт сохранён ✓');accountEditingId=null;
+}
+const saveAccountBtnV23=document.getElementById('saveAccountBtn');
+saveAccountBtnV23?.removeEventListener('click',saveAccount);
+saveAccountBtnV23.onclick=saveAccountV23;
+const deleteAccountBtnV23=document.getElementById('deleteAccountBtn');deleteAccountBtnV23?.removeEventListener('click',deleteAccount);deleteAccountBtnV23.onclick=deleteAccount;
 
 function salaryPeriodDefault(type){
   const d=new Date();
@@ -631,4 +650,4 @@ document.getElementById('payoutPeriod')?.addEventListener('change',()=>{const p=
 
 document.getElementById('accountBalance')?.addEventListener('blur',e=>formatMoneyInput(e.target));
 
-data.version=22;save();renderAll();
+data.version=23;save();renderAll();
