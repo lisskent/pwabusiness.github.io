@@ -118,3 +118,14 @@ html.dark .salary-card{background:#1a1c27;border-color:#303342}html.dark .salary
 @media(max-width:420px){.salary-grid{grid-template-columns:1fr}.salary-actions{grid-template-columns:1fr}.salary-grid>div{display:flex;justify-content:space-between;align-items:center;gap:10px}.salary-grid small{margin:0}}
 .info-modal{max-height:86vh}.info-content{font-size:14px;color:#55546f;line-height:1.45}.info-content>p{margin:0 0 14px}.info-item{background:#fff;border-radius:15px;padding:12px 13px;margin-bottom:8px}.info-item b{display:block;color:#25253b;margin-bottom:3px}.info-item span{display:block;font-size:12px;color:#777595}
 .wallet-card{background:#fff;border-radius:21px;padding:16px;box-shadow:0 7px 25px #4a49a00d;margin-bottom:12px}.wallet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.wallet-head span{font-size:12px;color:#8988a3}.wallet-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.wallet-item{background:#f6f6ff;border-radius:14px;padding:11px 12px;min-width:0}.wallet-item-top{display:flex;align-items:center;gap:7px;color:#666681;font-size:12px;font-weight:700}.wallet-item-icon{font-size:17px}.wallet-item b{display:block;margin-top:4px;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wallet-empty{font-size:12px;color:#8988a3;padding:4px 0}.dark .wallet-card{background:#1b1c29}.dark .wallet-item{background:#242535}.dark .wallet-head span,.dark .wallet-item-top{color:#a9a8bd}
+
+/* Hotfix: collapsible category settings */
+.category-collapse{padding:0;overflow:hidden}
+.category-collapse>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:15px 16px;user-select:none}
+.category-collapse>summary::-webkit-details-marker{display:none}
+.category-collapse>summary>span:first-child{display:grid;gap:3px;min-width:0}
+.category-collapse>summary b{font-size:15px}
+.category-collapse>summary small{color:var(--muted);font-size:12px}
+.collapse-chevron{font-size:20px;line-height:1;transition:transform .2s ease;color:var(--muted)}
+.category-collapse[open] .collapse-chevron{transform:rotate(180deg)}
+.category-collapse .collapse-content{padding:0 16px 16px}
