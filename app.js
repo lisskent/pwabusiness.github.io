@@ -399,6 +399,12 @@ function renderHomeFinance(){
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
   set('homeFinanceMonth',monthLabel(d));set('homeIncome',money(inc));set('homeExpense',money(exp));set('homeNet',money(net));set('homeGoalHint',goal?`${money(inc)} из ${money(goal)} · ${Math.round(p)}% цели`:'Цель месяца не задана');const bar=document.getElementById('homeGoalProgress');if(bar)bar.style.width=p+'%';
 }
+function renderHomeWallets(){
+  const box=document.getElementById('homeWallets');if(!box)return;
+  const balances=accountBalancesV22();
+  box.innerHTML=data.accounts.length?data.accounts.map(a=>`<div class=\"wallet-item\"><div class=\"wallet-item-top\"><span class=\"wallet-item-icon\">${a.icon||'💳'}</span><span>${escapeHtml(a.name||'Счёт')}</span></div><b>${money(balances[a.id]||0)}</b></div>`).join(''):'<div class=\"wallet-empty\">Счётов пока нет</div>';
+}
+
 function renderFinancialDay(){const x=financeDaySummary();const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('financialDayDate',new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'short'}));set('financialDayIncome',money(x.earned));set('financialDayExpense',money(x.expense));set('financialDayNet',money(x.net));const hours=entriesForMonth(new Date()).filter(e=>e.date===today()).reduce((s,x)=>s+(Number(x.e.hours)||0),0);set('financialDayWorkTime',x.net?`${hours?humanHours(hours)+' работы · ':''}Итог дня ${money(x.net)}.`:'Запишите смену и расходы, чтобы увидеть итог дня.');}
 function renderQuickTemplates(){const box=document.getElementById('templateButtons');if(!box)return;box.innerHTML=data.templates.slice(0,8).map(t=>{const c=txCategory(t.categoryId,t.type);return `<button class="template-btn" data-template="${t.id}"><span>${c.icon||'•'}</span><span>${escapeHtml(t.name)}</span><b>${t.type==='expense'?'−':'+'}${money(t.amount)}</b></button>`}).join('')||'<small class="settings-help">Добавьте шаблон в настройках.</small>';box.querySelectorAll('[data-template]').forEach(b=>b.onclick=()=>applyTemplate(b.dataset.template));}
 function applyTemplate(id){const t=data.templates.find(x=>x.id===id);if(!t)return;openTransaction(null,t.type);document.getElementById('txAmount').value=t.amount;document.getElementById('txCategory').value=t.categoryId;document.getElementById('txAccount').value=t.accountId||'cash';updateTxWorkTime();}
@@ -425,7 +431,7 @@ function deleteRecurring(){if(!recurringEditingId)return;data.recurring=data.rec
 function updateTxAccountUI(){const transfer=txType==='transfer';document.getElementById('txAccountLabel').classList.toggle('hidden',transfer);document.getElementById('transferAccounts').classList.toggle('hidden',!transfer);if(transfer){fillAccountSelect('txFromAccount',document.getElementById('txFromAccount')?.value||'cash');fillAccountSelect('txToAccount',document.getElementById('txToAccount')?.value||'card');}else fillAccountSelect('txAccount',document.getElementById('txAccount')?.value||'cash');}
 const oldSetTxTypeV21=setTxType;setTxType=function(type){txType=type;document.querySelectorAll('.tx-type').forEach(b=>{if(b.dataset.txType)b.classList.toggle('active',b.dataset.txType===type)});document.getElementById('transactionEyebrow').textContent=type==='expense'?'РАСХОД':type==='income'?'ДОХОД':'ПЕРЕВОД';document.getElementById('transactionTitle').textContent=txEditingId?'Изменить операцию':type==='expense'?'Новый расход':type==='income'?'Новый доход':'Перевод между счетами';const sel=document.getElementById('txCategory');if(sel)sel.innerHTML=categoryOptions(type==='income'?'income':'expense');if(sel&&!['transfer'].includes(type))sel.value=categoryFor(type,sel.value).id;updateTxAccountUI();updateTxWorkTime();};
 const oldOpenTransactionV21=openTransaction;openTransaction=function(id=null,type='expense'){const t=id?data.transactions.find(x=>x.id===id):null;txEditingId=id||null;txType=t?.type||type;document.getElementById('transactionTitle').textContent=t?'Изменить операцию':txType==='expense'?'Новый расход':txType==='income'?'Новый доход':'Перевод между счетами';document.getElementById('transactionEyebrow').textContent=txType==='expense'?'РАСХОД':txType==='income'?'ДОХОД':'ПЕРЕВОД';document.getElementById('txAmount').value=t?.amount??'';document.getElementById('txDate').value=t?.date||today();document.getElementById('txNote').value=t?.note||'';if(t?.type==='transfer'){fillAccountSelect('txFromAccount',t.fromAccountId||'cash');fillAccountSelect('txToAccount',t.toAccountId||'card');}else fillAccountSelect('txAccount',t?.accountId||'cash');setTxType(txType);if(t?.type!=='transfer'){const c=txCategory(t?.categoryId||'',txType);document.getElementById('txCategory').value=c.id;}document.getElementById('deleteTransactionBtn').classList.toggle('hidden',!t);updateTxWorkTime();document.getElementById('transactionModal').classList.remove('hidden');};
-function saveTransactionV21(){const amount=Number(String(document.getElementById('txAmount').value).replace(/\s/g,'').replace(',','.'));if(!Number.isFinite(amount)||amount<=0){toast('Введите сумму больше нуля');return}const t=txEditingId?data.transactions.find(x=>x.id===txEditingId):{id:uid(),createdAt:Date.now()};if(txType==='transfer'){const from=document.getElementById('txFromAccount').value,to=document.getElementById('txToAccount').value;if(from===to){toast('Счета перевода должны отличаться');return}Object.assign(t,{type:'transfer',amount,date:document.getElementById('txDate').value||today(),categoryId:'transfer',fromAccountId:from,toAccountId:to,note:document.getElementById('txNote').value.trim()});}else Object.assign(t,{type:txType,amount,date:document.getElementById('txDate').value||today(),categoryId:document.getElementById('txCategory').value,accountId:document.getElementById('txAccount').value,note:document.getElementById('txNote').value.trim()});if(!txEditingId)data.transactions.push(t);save();closeTransaction();renderAll();showScreen('money');toast(txEditingId?'Операция изменена ✓':'Операция сохранена ✓');}
+function saveTransactionV21(){const amount=Number(String(document.getElementById('txAmount').value).replace(/\s/g,'').replace(',','.'));if(!Number.isFinite(amount)||amount<=0){toast('Введите сумму больше нуля');return}const t=txEditingId?data.transactions.find(x=>x.id===txEditingId):{id:uid(),createdAt:Date.now()};if(txType==='transfer'){const from=document.getElementById('txFromAccount').value,to=document.getElementById('txToAccount').value;if(from===to){toast('Счета перевода должны отличаться');return}Object.assign(t,{type:'transfer',amount,date:document.getElementById('txDate').value||today(),categoryId:'transfer',fromAccountId:from,toAccountId:to,note:document.getElementById('txNote').value.trim(),updatedAt:Date.now()});}else Object.assign(t,{type:txType,amount,date:document.getElementById('txDate').value||today(),categoryId:document.getElementById('txCategory').value,accountId:document.getElementById('txAccount').value,note:document.getElementById('txNote').value.trim(),updatedAt:Date.now()});if(!txEditingId)data.transactions.push(t);save();closeTransaction();renderAll();showScreen('money');toast(txEditingId?'Операция изменена ✓':'Операция сохранена ✓');}
 saveTransaction=saveTransactionV21;
 function deleteTransactionV21(){if(!txEditingId)return;if(!confirm('Удалить операцию?'))return;const old=JSON.parse(JSON.stringify(data.transactions.find(t=>t.id===txEditingId)));data.undoStack=[old,...data.undoStack].slice(0,5);data.transactions=data.transactions.filter(t=>t.id!==txEditingId);save();closeTransaction();renderAll();showScreen('money');toast('Операция удалена · Отменить в течение 5 сек');clearTimeout(window.__undo);window.__undo=setTimeout(()=>{data.undoStack.shift();save()},5000);const t=document.getElementById('toast');t.onclick=()=>{const x=data.undoStack.shift();if(x){data.transactions.push(x);save();renderAll();showScreen('money');toast('Удаление отменено ✓')}};}
 deleteTransaction=deleteTransactionV21;
@@ -497,8 +503,9 @@ function accountBalancesV22(){
   const balances={};
   data.accounts.forEach(a=>balances[a.id]=a.balance!=null&&a.balanceSetAt?Number(a.balance):Number(a.opening)||0);
   const cutoff={};
-  data.accounts.forEach(a=>{cutoff[a.id]=a.balanceSetAt||null});
-  const include=(accountId,date)=>{const c=cutoff[accountId];return !c||date>c};
+  const cutoffTs={};
+  data.accounts.forEach(a=>{cutoff[a.id]=a.balanceSetAt||null;cutoffTs[a.id]=Number(a.balanceSetAtTs)||0});
+  const include=(accountId,date,eventTs=0)=>{const c=cutoff[accountId];if(!c)return true;if(date>c)return true;if(date<c)return false;return Number(eventTs)>Number(cutoffTs[accountId]||0)};
   Object.entries(data.days).forEach(([date,day])=>{
     normalizeDayEntries(day).forEach(e=>{
       if(e.type==='off')return;
@@ -509,13 +516,13 @@ function accountBalancesV22(){
   });
   data.transactions.forEach(t=>{
     if(t.type==='transfer'){
-      if(include(t.fromAccountId,t.date))balances[t.fromAccountId]=(balances[t.fromAccountId]||0)-Number(t.amount||0);
-      if(include(t.toAccountId,t.date))balances[t.toAccountId]=(balances[t.toAccountId]||0)+Number(t.amount||0);
+      if(include(t.fromAccountId,t.date,t.updatedAt||t.createdAt))balances[t.fromAccountId]=(balances[t.fromAccountId]||0)-Number(t.amount||0);
+      if(include(t.toAccountId,t.date,t.updatedAt||t.createdAt))balances[t.toAccountId]=(balances[t.toAccountId]||0)+Number(t.amount||0);
       return;
     }
-    if(include(t.accountId,t.date))balances[t.accountId]=(balances[t.accountId]||0)+(t.type==='expense'?-1:1)*Number(t.amount||0);
+    if(include(t.accountId,t.date,t.updatedAt||t.createdAt))balances[t.accountId]=(balances[t.accountId]||0)+(t.type==='expense'?-1:1)*Number(t.amount||0);
   });
-  data.salaryPayouts.forEach(p=>{if(include(p.accountId,p.date))balances[p.accountId]=(balances[p.accountId]||0)+Number(p.amount||0)});
+  data.salaryPayouts.forEach(p=>{if(include(p.accountId,p.date,p.updatedAt||p.createdAt))balances[p.accountId]=(balances[p.accountId]||0)+Number(p.amount||0)});
   return balances;
 }
 accountBalances=accountBalancesV22;
@@ -636,7 +643,7 @@ showScreen=function(s){__oldShowScreenV22(s);if(s==='money'){const added=materia
 
 // Make the home financial widget refresh after every full render and every saved shift.
 const __oldRenderAllV22=renderAll;
-renderAll=function(){ensureV22();__oldRenderAllV22();renderHomeFinanceV22();renderSalary();};
+renderAll=function(){ensureV22();__oldRenderAllV22();renderHomeFinanceV22();renderHomeWallets();renderSalary();};
 
 // Salary actions and payout modal.
 document.getElementById('advanceBtn')?.addEventListener('click',()=>openPayoutEditor('advance'));
