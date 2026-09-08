@@ -142,5 +142,39 @@ html.dark .salary-card{background:#1a1c27;border-color:#303342}html.dark .salary
 .budget-status{font-size:10px;font-weight:800}.budget-status.ok{color:#1c8b55}.budget-status.warn{color:#b07a00}.budget-status.over{color:#c93659}
 .dark .tx-page-btn{background:#292c3b;color:#f4f4fb}.dark .wallet-total{border-color:#303342}
 
-/* ====================== v25 financial intelligence ====================== */
-.safe-spend-card,.balance-forecast-card,.financial-calendar-card,.capital-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:15px;margin-bottom:12px;overflow:hidden}.safe-spend-card{background:linear-gradient(135deg,#585be5,#7779ee);color:#fff;border:0}.safe-spend-card>div:first-child{display:flex;align-items:end;justify-content:space-between;gap:10px}.safe-spend-card span,.safe-spend-card small{font-size:11px;color:#e5e5ff}.safe-spend-card>div:first-child b{font-size:27px;line-height:1.05}.safe-spend-daily{margin-top:11px;padding-top:10px;border-top:1px solid #ffffff33;display:flex;justify-content:space-between;gap:10px;align-items:center}.safe-spend-daily b{font-size:14px}.safe-spend-card p,.balance-forecast-card p{font-size:11px;color:var(--muted);margin:9px 0 0;line-height:1.4}.safe-spend-card p{color:#e7e7ff}.balance-forecast-card>b{display:block;font-size:27px;line-height:1.1;margin-top:3px}.financial-calendar-card .list-header{margin-bottom:4px}.financial-cal-row{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.financial-cal-row:last-child{border-bottom:0}.financial-cal-row.today{background:var(--surface-2);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:12px}.financial-cal-date b,.financial-cal-date small{display:block}.financial-cal-date b{font-size:12px}.financial-cal-date small{font-size:9px;color:var(--muted);margin-top:2px}.financial-cal-tags{display:flex;flex-wrap:wrap;gap:4px;min-width:0}.financial-cal-tags span{font-size:9px;padding:4px 6px;border-radius:7px;background:var(--surface-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.financial-cal-tags .muted{color:var(--muted)}.financial-cal-balance{font-size:11px;white-space:nowrap}.capital-row{padding:9px 0;border-bottom:1px solid var(--line)}.capital-row:last-child{border-bottom:0}.capital-label{display:flex;justify-content:space-between;gap:10px;font-size:11px;margin-bottom:6px}.capital-label b{font-size:12px}.capital-bar{height:7px;background:var(--surface-2);border-radius:99px;overflow:hidden}.capital-bar i{display:block;height:100%;background:var(--accent);border-radius:99px}.dark .safe-spend-card{background:linear-gradient(135deg,#5557d8,#7476ef)}.dark .balance-forecast-card,.dark .financial-calendar-card,.dark .capital-card{background:#1a1c27;border-color:#303342}.dark .financial-cal-tags span,.dark .capital-bar{background:#25283a}@media(max-width:420px){.financial-cal-row{grid-template-columns:65px minmax(0,1fr);}.financial-cal-balance{grid-column:2;text-align:right}.safe-spend-card>div:first-child{align-items:center}.safe-spend-card>div:first-child b{font-size:24px}}
+/* v25 hotfix: financial calendar */
+.financial-calendar-collapse{background:#fff;border:1px solid #e5e5f1;border-radius:18px;margin-bottom:12px;overflow:hidden}
+.financial-calendar-collapse>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px;cursor:pointer}
+.financial-calendar-collapse>summary::-webkit-details-marker{display:none}
+.financial-calendar-collapse>summary>span:first-child{display:flex;flex-direction:column;gap:4px;min-width:0}
+.financial-calendar-collapse>summary b{font-size:16px}
+.financial-calendar-collapse>summary small{font-size:11px;color:#77758e;line-height:1.35}
+.financial-calendar-content{padding:0 15px 15px}
+.financial-calendar-meta{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:0 0 10px;color:#77758e;font-size:12px}
+.financial-calendar-meta>span{font-weight:800;color:#5b5ce2;white-space:nowrap}
+.financial-calendar-meta small{line-height:1.35;text-align:right}
+.financial-calendar-day{display:grid;grid-template-columns:78px 1fr auto;gap:10px;align-items:center;padding:13px 0;border-top:1px solid #eeeef6;min-width:0}
+.financial-calendar-day.today{background:#f5f5ff;border:1px solid #e0e0f3;border-radius:14px;padding:13px 10px;margin:0 -10px}
+.financial-calendar-date{display:flex;flex-direction:column;gap:3px}
+.financial-calendar-date b{font-size:13px}
+.financial-calendar-date small{font-size:10px;color:#77758e}
+.financial-calendar-events{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.financial-event{display:inline-flex;align-items:center;max-width:100%;padding:7px 9px;border-radius:10px;background:#f0f0fa;color:#55546f;font-size:11px;font-weight:750}
+.financial-event.work{background:#eeeefe;color:#5557c9}
+.financial-event.income{background:#e6f8ed;color:#1c8b55}
+.financial-event.expense{background:#ffe8ee;color:#c93659}
+.financial-event.muted{color:#8a899e}
+.financial-calendar-balance{font-size:14px;font-weight:850;white-space:nowrap;text-align:right}
+.financial-calendar-balance.negative{color:#c93659}
+.financial-calendar-empty{padding:12px 0;color:#8a899e;font-size:12px}
+html.dark .financial-calendar-collapse{background:#1a1c27;color:#f4f4fb;border-color:#303342;box-shadow:0 7px 25px #00000030}
+html.dark .financial-calendar-collapse>summary small,html.dark .financial-calendar-meta,html.dark .financial-calendar-date small{color:#aeb0c5}
+html.dark .financial-calendar-meta>span{color:#aeb1ff}
+html.dark .financial-calendar-day{border-color:#303342}
+html.dark .financial-calendar-day.today{background:#242638;border-color:#3b3e54}
+html.dark .financial-event{background:#25283a;color:#c8c9da}
+html.dark .financial-event.work{background:#30345a;color:#c3c5ff}
+html.dark .financial-event.income{background:#17382a;color:#86e4b2}
+html.dark .financial-event.expense{background:#41212b;color:#ff9fb1}
+html.dark .financial-event.muted,html.dark .financial-calendar-empty{color:#aeb0c5}
+@media(max-width:420px){.financial-calendar-day{grid-template-columns:66px 1fr auto;gap:7px}.financial-calendar-balance{font-size:13px}.financial-calendar-content{padding-left:12px;padding-right:12px}}
