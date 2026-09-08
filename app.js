@@ -736,3 +736,105 @@ renderAll=function(){__oldRenderAllV24();renderHomeWalletsV24();};
 
 // v24 schema marker
 data.version=24;save();
+
+/* ====================== v25 financial intelligence ====================== */
+function v25DateStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function v25Money(n){return money(Math.round(Number(n)||0))}
+function v25PlannedWorkIncome(dateStr){
+  const marks=Array.isArray(data.calendar?.[dateStr])?data.calendar[dateStr]:[];
+  return marks.filter(id=>id&&id!=='off').reduce((s,id)=>s+Number(expectedForWork(id,new Date(dateStr+'T12:00:00'))||0),0);
+}
+function v25RecurringForDate(dateStr){
+  const d=new Date(dateStr+'T12:00:00'),last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  return (data.recurring||[]).filter(r=>{
+    const day=Math.min(Number(r.day)||1,last), expected=`${dateStr.slice(0,7)}-${String(day).padStart(2,'0')}`;
+    if(expected!==dateStr)return false;
+    if(r.endDate&&dateStr>r.endDate)return false;
+    const created=r.createdAt?iso(new Date(r.createdAt)):null;
+    return !(created&&dateStr<created);
+  });
+}
+function v25ActualMovement(dateStr){
+  let n=0;
+  normalizeDayEntries(data.days?.[dateStr]).forEach(e=>{if(e.type!=='off')n+=(Number(e.cash)||0)+(Number(e.card)||0)});
+  (data.transactions||[]).filter(t=>t.date===dateStr).forEach(t=>{n+=t.type==='expense'?-Number(t.amount||0):t.type==='income'?Number(t.amount||0):0});
+  (data.salaryPayouts||[]).filter(p=>p.date===dateStr).forEach(p=>n+=Number(p.amount||0));
+  return n;
+}
+function v25FutureRecurringMovement(dateStr){return v25RecurringForDate(dateStr).reduce((s,r)=>s+(r.type==='expense'?-1:1)*Number(r.amount||0),0)}
+function v25CommittedExpensesRemaining(){
+  const now=new Date(), end=new Date(now.getFullYear(),now.getMonth()+1,0), todayStr=today();
+  let total=0;
+  for(let d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);d<=end;d.setDate(d.getDate()+1)){
+    const ds=v25DateStr(d); total+=(v25RecurringForDate(ds).filter(r=>r.type==='expense').reduce((s,r)=>s+Number(r.amount||0),0));
+  }
+  return total;
+}
+function v25SafeToSpend(){
+  const balances=accountBalancesV22(), total=data.accounts.reduce((s,a)=>s+(Number(balances[a.id])||0),0);
+  const committed=v25CommittedExpensesRemaining();
+  const safe=Math.max(0,total-committed);
+  const days=Math.max(1,new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate()-new Date().getDate());
+  return {total,committed,safe,daily:safe/days,days};
+}
+function renderV25SafeToSpend(){
+  const s=v25SafeToSpend(),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  set('safeSpendValue',v25Money(s.safe));set('safeSpendDaily',v25Money(s.daily)+' / день');
+  set('safeSpendHint',s.committed?`После обязательных платежей: ${v25Money(s.committed)} · осталось ${s.days} дн.`:`Обязательных регулярных расходов до конца месяца нет.`);
+}
+function v25ForecastBalance(){
+  const s=v25SafeToSpend();let futureIncome=0,futureCommitted=0;
+  const now=new Date(),end=new Date(now.getFullYear(),now.getMonth()+1,0);
+  for(let d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);d<=end;d.setDate(d.getDate()+1)){
+    const ds=v25DateStr(d);futureIncome+=v25PlannedWorkIncome(ds);futureIncome+=(v25RecurringForDate(ds).filter(r=>r.type==='income').reduce((x,r)=>x+Number(r.amount||0),0));futureCommitted+=v25RecurringForDate(ds).filter(r=>r.type==='expense').reduce((x,r)=>x+Number(r.amount||0),0);
+  }
+  return {current:s.total,futureIncome,futureCommitted,forecast:s.total+futureIncome-futureCommitted};
+}
+function renderV25ForecastBalance(){
+  const f=v25ForecastBalance(),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  set('balanceForecastValue',v25Money(f.forecast));
+  set('balanceForecastHint',`Сейчас ${v25Money(f.current)} · планируемый доход +${v25Money(f.futureIncome)} · обязательные расходы −${v25Money(f.futureCommitted)}`);
+}
+function renderV25FinancialCalendar(){
+  const box=document.getElementById('financialCalendarList');if(!box)return;
+  const now=new Date(),start=new Date(now.getFullYear(),now.getMonth(),now.getDate()),days=14;
+  let balance=accountBalancesV22(),running=data.accounts.reduce((s,a)=>s+(Number(balance[a.id])||0),0),html='';
+  for(let i=0;i<days;i++){
+    const d=new Date(start);d.setDate(start.getDate()+i);const ds=v25DateStr(d),past=ds<today();
+    const actual=v25ActualMovement(ds),planned=v25PlannedWorkIncome(ds)+v25FutureRecurringMovement(ds),delta=ds===today()?0:planned;
+    if(i>0) running+=delta;
+    const rec=v25RecurringForDate(ds),tags=[];
+    if(v25PlannedWorkIncome(ds)>0)tags.push(`работа +${v25Money(v25PlannedWorkIncome(ds))}`);
+    rec.forEach(r=>tags.push(`${r.type==='expense'?'расход':'доход'} ${v25Money(r.amount)}`));
+    if(actual)tags.push(`факт ${actual>0?'+':''}${v25Money(actual)}`);
+    html+=`<div class="financial-cal-row ${ds===today()?'today':''}"><div class="financial-cal-date"><b>${d.toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'short'})}</b><small>${past?'факт':ds===today()?'сегодня':'прогноз'}</small></div><div class="financial-cal-tags">${tags.map(x=>`<span>${escapeHtml(x)}</span>`).join('')||'<span class="muted">без движений</span>'}</div><b class="financial-cal-balance">${v25Money(running)}</b></div>`;
+  }
+  box.innerHTML=html;
+}
+function v25DailyMovement(dateStr){return v25ActualMovement(dateStr)}
+function v25CapitalHistory(){
+  const current= data.accounts.reduce((s,a)=>s+(Number(accountBalancesV22()[a.id])||0),0), now=new Date(),months=[];
+  const baselineDates=data.accounts.map(a=>a.balanceSetAt).filter(Boolean).sort();
+  const minDate=baselineDates[0]||null;
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1), end=new Date(d.getFullYear(),d.getMonth()+1,0), ds=v25DateStr(end);
+    if(minDate&&ds<minDate)continue;
+    let future=0;
+    const cursor=new Date(end);cursor.setDate(cursor.getDate()+1);
+    for(let x=new Date(cursor);x<=now;x.setDate(x.getDate()+1))future+=v25DailyMovement(v25DateStr(x));
+    months.push({label:d.toLocaleDateString('ru-RU',{month:'short',year:'numeric'}),value:current-future});
+  }
+  return months;
+}
+function renderV25CapitalHistory(){
+  const box=document.getElementById('capitalHistory');if(!box)return;const rows=v25CapitalHistory();
+  if(!rows.length){box.innerHTML='<div class="empty-state compact"><b>Истории пока недостаточно</b><span>Она появится после накопления данных о движении денег.</span></div>';return}
+  const max=Math.max(...rows.map(x=>Math.abs(x.value)),1);
+  box.innerHTML=rows.map(x=>`<div class="capital-row"><div class="capital-label"><span>${escapeHtml(x.label)}</span><b>${v25Money(x.value)}</b></div><div class="capital-bar"><i style="width:${Math.max(4,Math.min(100,Math.abs(x.value)/max*100))}%"></i></div></div>`).join('');
+}
+function renderV25FinancialIntelligence(){renderV25SafeToSpend();renderV25ForecastBalance();renderV25FinancialCalendar();renderV25CapitalHistory();}
+const __oldRenderAllV25=renderAll;
+renderAll=function(){__oldRenderAllV25();renderV25FinancialIntelligence();};
+const __oldRenderMoneyV25=renderMoney;
+renderMoney=function(){__oldRenderMoneyV25();renderV25FinancialIntelligence();};
+renderV25FinancialIntelligence();
