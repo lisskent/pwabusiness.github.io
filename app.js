@@ -705,18 +705,35 @@ document.querySelectorAll('[data-tx-filter]').forEach(b=>b.onclick=()=>{v21TxFil
 
 // Wallets: show total and today's movement, and use a wallet tap as a shortcut to its operations.
 function walletTodayDeltaV24(id){
-  // Выручка смены не является личным движением денег в кошельке.
-  // Учитываем только реальные финансовые операции и выплаты зарплаты.
+  // ВАЖНО: сохранение рабочей смены НЕ является движением денег кошелька.
+  // Здесь учитываются только реальные финансовые операции и выплаты зарплаты,
+  // причём только те, которые произошли после установленного пользователем
+  // начального баланса. Иначе старые операции от багов прошлых версий
+  // внезапно выглядели бы как сегодняшнее поступление после любого сохранения смены.
   let n=0;
-  (data.transactions||[]).filter(t=>t.date===today()).forEach(t=>{
+  const account=data.accounts.find(a=>a.id===id);
+  const cutoff=account?.balanceSetAt||null;
+  const cutoffTs=Number(account?.balanceSetAtTs)||0;
+  const includeToday=(date,eventTs=0)=>{
+    if(date!==today())return false;
+    if(!cutoff)return true;
+    if(date>cutoff)return true;
+    if(date<cutoff)return false;
+    return Number(eventTs)>cutoffTs;
+  };
+  (data.transactions||[]).forEach(t=>{
+    const ts=Number(t.updatedAt||t.createdAt)||0;
     if(t.type==='transfer'){
-      if(t.fromAccountId===id)n-=Number(t.amount)||0;
-      if(t.toAccountId===id)n+=Number(t.amount)||0;
-    }else if(t.accountId===id){
+      if(t.fromAccountId===id && includeToday(t.date,ts))n-=Number(t.amount)||0;
+      if(t.toAccountId===id && includeToday(t.date,ts))n+=Number(t.amount)||0;
+    }else if(t.accountId===id && includeToday(t.date,ts)){
       n+=(t.type==='expense'?-1:1)*(Number(t.amount)||0);
     }
   });
-  (data.salaryPayouts||[]).filter(p=>p.date===today()&&p.accountId===id).forEach(p=>n+=Number(p.amount)||0);
+  (data.salaryPayouts||[]).forEach(p=>{
+    const ts=Number(p.updatedAt||p.createdAt)||0;
+    if(p.accountId===id && includeToday(p.date,ts))n+=Number(p.amount)||0;
+  });
   return n;
 }
 function renderHomeWalletsV24(){const box=document.getElementById('homeWallets');if(!box)return;const balances=accountBalancesV22(),total=data.accounts.reduce((s,a)=>s+(Number(balances[a.id])||0),0);box.innerHTML=data.accounts.length?data.accounts.map(a=>{const delta=walletTodayDeltaV24(a.id);return `<button class="wallet-item" data-wallet-filter="${a.id}"><div class="wallet-item-top"><span class="wallet-item-icon">${a.icon||'💳'}</span><span>${escapeHtml(a.name||'Счёт')}</span></div><b>${money(balances[a.id]||0)}</b>${delta?`<small class="wallet-delta">${delta>0?'↑ +':'↓ '}${money(Math.abs(delta))} сегодня</small>`:''}</button>`}).join('')+`<div class="wallet-total"><span>Всего</span><b>${money(total)}</b></div>`:'<div class="wallet-empty">Счётов пока нет</div>';box.querySelectorAll('[data-wallet-filter]').forEach(b=>b.onclick=()=>{v24TxAccount=b.dataset.walletFilter;v24TxPage=1;showScreen('money');renderTransactionListV24();});}
